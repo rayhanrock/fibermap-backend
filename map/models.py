@@ -1,3 +1,5 @@
+import json
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -62,14 +64,21 @@ class Gpon(models.Model):
 class Cable(models.Model):
     identifier = models.CharField(max_length=100, null=True, blank=True)
     type = models.CharField(max_length=100, null=True, blank=True)
-    start_from = models.CharField(max_length=100)
+    start_from = models.CharField(max_length=100, choices=MarkerType.choices)
     starting_point = models.ForeignKey(Marker, on_delete=models.DO_NOTHING, related_name='starting_point')
-    end_to = models.CharField(max_length=100)
+    end_to = models.CharField(max_length=100, choices=MarkerType.choices)
     ending_point = models.ForeignKey(Marker, on_delete=models.DO_NOTHING, related_name='ending_point')
     number_of_cores = models.IntegerField()
     length = models.FloatField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
+    polyline = models.TextField(null=True, blank=True)
+
+    def set_polyline(self, data):
+        self.polyline = json.dumps(data)
+
+    def get_polyline(self):
+        return json.loads(self.polyline)
 
     def __str__(self):
         return self.identifier
@@ -84,7 +93,7 @@ class Core(models.Model):
     connected_cores = models.ManyToManyField("self", blank=True)
 
     def __str__(self):
-        return f"{self.marker.name} {self.cable.identifier} - {self.core_number}"
+        return f"{self.marker.type} {self.cable.identifier} - {self.core_number}"
 
 # class Connection(models.Model):
 #     marker = models.ForeignKey(Marker, on_delete=models.CASCADE)
