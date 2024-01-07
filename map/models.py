@@ -12,6 +12,7 @@ class MarkerType(models.TextChoices):
 
 
 class Marker(models.Model):
+    identifier = models.CharField(max_length=100, null=True, blank=True)
     type = models.CharField(max_length=100, choices=MarkerType.choices)
     latitude = models.FloatField()
     longitude = models.FloatField()
@@ -51,16 +52,6 @@ class Client(models.Model):
         return self.name
 
 
-class Gpon(models.Model):
-    identifier = models.CharField(max_length=100, null=True, blank=True)
-    name = models.CharField(max_length=100)
-    marker = models.OneToOneField(Marker, on_delete=models.CASCADE)
-    splitter = models.CharField(max_length=100, null=True, blank=True)
-
-    def __str__(self):
-        return self.name
-
-
 class Cable(models.Model):
     identifier = models.CharField(max_length=100, null=True, blank=True)
     type = models.CharField(max_length=100, null=True, blank=True)
@@ -86,22 +77,29 @@ class Cable(models.Model):
 
 class Core(models.Model):
     marker = models.ForeignKey(Marker, on_delete=models.CASCADE)
-    cable = models.ForeignKey(Cable, on_delete=models.CASCADE)
+    cable = models.ForeignKey(Cable, on_delete=models.CASCADE, null=True, blank=True)
     core_number = models.IntegerField()
     color = models.CharField(max_length=100)
     assigned = models.BooleanField()
     connected_cores = models.ManyToManyField("self", blank=True)
 
     def __str__(self):
-        return f"{self.marker.type} {self.cable.identifier} - {self.core_number}"
+        return f"{self.marker.type} {self.cable} - {self.core_number}"
 
-# class Connection(models.Model):
-#     marker = models.ForeignKey(Marker, on_delete=models.CASCADE)
-#     core_from = models.ForeignKey(Core, on_delete=models.CASCADE, related_name='core_from')
-#     core_to = models.ForeignKey(Core, on_delete=models.CASCADE, related_name='core_to')
-#     assigned = models.BooleanField()
 
-# def create_connection(cable, core_number, next_connection=None):
-#     connection = Connection(cable=cable, core_number=core_number, next_connection=next_connection)
-#     connection.save()
-#     return connection
+class Gpon(models.Model):
+    identifier = models.CharField(max_length=100, null=True, blank=True)
+    name = models.CharField(max_length=100)
+    marker = models.OneToOneField(Marker, on_delete=models.CASCADE)
+    input_cable = models.ForeignKey(Cable, on_delete=models.CASCADE, null=True, blank=True)
+    input_core = models.ForeignKey(Core, on_delete=models.CASCADE, related_name='input_core', null=True, blank=True)
+    output_cores = models.ManyToManyField(Core, related_name='output_cores', blank=True)
+    splitter = models.IntegerField()
+
+    def __str__(self):
+        return self.name
+
+
+class Connection(models.Model):
+    core_from = models.ForeignKey(Core, on_delete=models.CASCADE, related_name='core_from')
+    core_to = models.ForeignKey(Core, on_delete=models.CASCADE, related_name='core_to')

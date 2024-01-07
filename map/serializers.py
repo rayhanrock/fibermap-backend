@@ -1,8 +1,11 @@
 import json
+from json import JSONEncoder
+
+from .utility import find_core_paths
 
 from rest_framework import serializers
 
-from .models import Marker, POP, Client, Junction, Gpon, Cable
+from .models import Marker, POP, Client, Junction, Gpon, Cable, Core
 
 
 class MarkerSerializer(serializers.ModelSerializer):
@@ -21,6 +24,8 @@ class POPCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         marker_data = validated_data.pop('marker')
         marker = Marker.objects.create(**marker_data)
+        marker.identifier = validated_data['name']
+        marker.save()
         pop = POP.objects.create(marker=marker, **validated_data)
         return pop
 
@@ -45,6 +50,8 @@ class ClientCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         marker_data = validated_data.pop('marker')
         marker = Marker.objects.create(**marker_data)
+        marker.identifier = validated_data['name']
+        marker.save()
         client = Client.objects.create(marker=marker, **validated_data)
         return client
 
@@ -69,6 +76,8 @@ class JunctionCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         marker_data = validated_data.pop('marker')
         marker = Marker.objects.create(**marker_data)
+        marker.identifier = validated_data['name']
+        marker.save()
         junction = Junction.objects.create(marker=marker, **validated_data)
         return junction
 
@@ -93,7 +102,15 @@ class GponCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         marker_data = validated_data.pop('marker')
         marker = Marker.objects.create(**marker_data)
-        gpon = Gpon.objects.create(marker=marker, **validated_data)
+        marker.identifier = validated_data['name']
+        marker.save()
+
+        splitter = validated_data['splitter']
+        input_core = Core.objects.create(marker=marker, core_number=0, assigned=False, color='gpon_color')
+        gpon = Gpon.objects.create(marker=marker,input_core=input_core, **validated_data)
+        for i in range(1, splitter + 1):
+            obj = Core.objects.create(marker=marker, core_number=i, assigned=False, color='gpon_color')
+            obj.connected_cores.add(input_core)
         return gpon
 
 
@@ -156,10 +173,29 @@ class CableCreateSerializer(serializers.ModelSerializer):
         last_point = polyline.pop()
         polyline.append(end_position)
 
+        num_of_core = validated_data['number_of_cores']
         # Serialize array before creating the model instance
         validated_data['polyline'] = json.dumps(polyline)
         print(validated_data)
         instance = super().create(validated_data)
+
+        for i in range(1, num_of_core + 1):
+            start_marker_side = Core.objects.create(
+                marker=starting_point,
+                cable=instance,
+                core_number=i,
+                color='red',
+                assigned=False
+            )
+            end_marker_side = Core.objects.create(
+                marker=ending_point,
+                cable=instance,
+                core_number=i,
+                color='red',
+                assigned=False
+            )
+            start_marker_side.connected_cores.add(end_marker_side)
+
         return instance
 
 
@@ -172,3 +208,24 @@ class CableListSerializer(serializers.ModelSerializer):
 
     def get_polyline(self, obj):
         return obj.get_polyline()
+
+
+class CoreSerializer(serializers.ModelSerializer):
+    last_point = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Core
+        fields = ['id', 'core_number', 'color', 'assigned', 'last_point']
+
+    def get_last_point(self, obj):
+        line = find_core_paths(obj)[0].pop().marker
+        rest = MarkerSerializer(line).data
+        return rest
+
+
+class CableSerializer(serializers.ModelSerializer):
+    cores = CoreSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Cable
+        fields = ['id', 'identifier', 'number_of_cores', 'length', 'cores']

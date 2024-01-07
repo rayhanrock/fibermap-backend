@@ -1,18 +1,4 @@
-from django.shortcuts import render
-
-from .models import Core
-
-
 def has_three_consecutive(data):
-    """
-    Checks if any item occurs three times consecutively in a list.
-
-    Args:
-        data: A list of any type of data.
-
-    Returns:
-        True if any item occurs three times consecutively, False otherwise.
-    """
     for i in range(2, len(data)):
         if data[i] == data[i - 1] == data[i - 2]:
             return True
@@ -34,16 +20,13 @@ def find_core_paths(starting_core):
     paths = []
     while stack:
 
-        print('############')
         node, current_path = stack.pop()
         if node not in visited:
             visited.add(node)
             current_path.append(node)
             if all(n in visited for n in node.connected_cores.all()):
-                paths.append(current_path)
-
-                # if not has_three_consecutive([n.cable for n in current_path]):
-                #     paths.append(current_path)
+                if not has_three_consecutive([n.cable for n in current_path]):
+                    paths.append(current_path)
 
             else:
                 for neighbor in node.connected_cores.all():
@@ -51,14 +34,3 @@ def find_core_paths(starting_core):
                         stack.append((neighbor, current_path.copy()))
 
     return paths
-
-
-def network_view(request):
-    start_core = Core.objects.get(id=14)
-
-    paths = find_core_paths(start_core)
-
-    for path in paths:
-        print(f"Path: {path}")
-
-    return render(request, 'network_view.html')
