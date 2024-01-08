@@ -103,3 +103,6 @@ class Gpon(models.Model):
 class Connection(models.Model):
     core_from = models.ForeignKey(Core, on_delete=models.CASCADE, related_name='core_from')
     core_to = models.ForeignKey(Core, on_delete=models.CASCADE, related_name='core_to')
+
+    def __str__(self):
+        return f"{self.core_from} - {self.core_to}"

@@ -5,13 +5,19 @@ from .utility import find_core_paths
 
 from rest_framework import serializers
 
-from .models import Marker, POP, Client, Junction, Gpon, Cable, Core
+from .models import Marker, POP, Client, Junction, Gpon, Cable, Core, Connection
 
 
 class MarkerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Marker
         fields = ('id', 'type', 'latitude', 'longitude', 'address', 'notes', 'description')
+
+
+class BasicMarkerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Marker
+        fields = ('identifier', 'type',)
 
 
 class POPCreateSerializer(serializers.ModelSerializer):
@@ -107,10 +113,10 @@ class GponCreateSerializer(serializers.ModelSerializer):
 
         splitter = validated_data['splitter']
         input_core = Core.objects.create(marker=marker, core_number=0, assigned=False, color='gpon_color')
-        gpon = Gpon.objects.create(marker=marker,input_core=input_core, **validated_data)
+        gpon = Gpon.objects.create(marker=marker, input_core=input_core, **validated_data)
         for i in range(1, splitter + 1):
             obj = Core.objects.create(marker=marker, core_number=i, assigned=False, color='gpon_color')
-            obj.connected_cores.add(input_core)
+            Connection.objects.create(core_from=obj, core_to=input_core)
         return gpon
 
 
@@ -194,7 +200,9 @@ class CableCreateSerializer(serializers.ModelSerializer):
                 color='red',
                 assigned=False
             )
-            start_marker_side.connected_cores.add(end_marker_side)
+            # start_marker_side.connected_cores.add(end_marker_side)
+            Connection.objects.create(core_from=start_marker_side, core_to=end_marker_side)
+            Connection.objects.create(core_from=end_marker_side, core_to=start_marker_side)
 
         return instance
 
@@ -218,9 +226,9 @@ class CoreSerializer(serializers.ModelSerializer):
         fields = ['id', 'core_number', 'color', 'assigned', 'last_point']
 
     def get_last_point(self, obj):
-        line = find_core_paths(obj)[0].pop().marker
-        rest = MarkerSerializer(line).data
-        return rest
+        last_connected_marker = find_core_paths(obj).pop().marker
+        data = BasicMarkerSerializer(last_connected_marker).data
+        return data
 
 
 class CableSerializer(serializers.ModelSerializer):

@@ -17,9 +17,9 @@ urlpatterns = [
 
     path('cable/', views.CableListView.as_view(), name='cable-list'),
     path('cable/create/', views.CableCreateView.as_view(), name='cable-create'),
-    path('client-cable-cores/<int:client_id>/', views.CoresByClientAPIView.as_view(), name='client-cable-cores'),
 
-    path('client-cable/<int:client_id>/cores/', views.ClientCoresAPIView.as_view(), name='new-client-cable-cores'),
+    path('client-details/<int:client_id>/cores/', views.ClientCoresDetailsAPIView.as_view(),
+         name='client-core-details'),
     # path('network/', views.Network.as_view(), name='network'),
 
     path('network/', oldview.network_view, name='network_view'),

@@ -1,22 +1,6 @@
 from django.shortcuts import render
 
-from .models import Core
-
-
-def has_three_consecutive(data):
-    """
-    Checks if any item occurs three times consecutively in a list.
-
-    Args:
-        data: A list of any type of data.
-
-    Returns:
-        True if any item occurs three times consecutively, False otherwise.
-    """
-    for i in range(2, len(data)):
-        if data[i] == data[i - 1] == data[i - 2]:
-            return True
-    return False
+from .models import Core, Connection
 
 
 def find_core_paths(starting_core):
@@ -39,26 +23,36 @@ def find_core_paths(starting_core):
         if node not in visited:
             visited.add(node)
             current_path.append(node)
-            if all(n in visited for n in node.connected_cores.all()):
+            core_to = [conn.core_to for conn in Connection.objects.filter(core_from=node)]
+            if all(n in visited for n in core_to):
                 paths.append(current_path)
 
-                # if not has_three_consecutive([n.cable for n in current_path]):
-                #     paths.append(current_path)
-
             else:
-                for neighbor in node.connected_cores.all():
+                for neighbor in core_to:
                     if neighbor not in visited:
                         stack.append((neighbor, current_path.copy()))
 
-    return paths
+    result = []
+    for path in paths:
+        if path[0].cable == path[1].cable:
+
+            if path[-1].cable is None:
+                path.pop()
+            result.append(path[0])
+            for i in range(1, len(path)):
+                if result[-1].marker == path[i].marker:
+                    result.pop()
+                    result.append(path[i])
+                else:
+                    result.append(path[i])
+            break
+    return result
 
 
 def network_view(request):
-    start_core = Core.objects.get(id=14)
+    start_core = Core.objects.get(id=31)
 
-    paths = find_core_paths(start_core)
-
-    for path in paths:
-        print(f"Path: {path}")
+    path = find_core_paths(start_core)
+    print(f"Path: {path}")
 
     return render(request, 'network_view.html')

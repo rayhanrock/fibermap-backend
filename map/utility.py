@@ -1,8 +1,4 @@
-def has_three_consecutive(data):
-    for i in range(2, len(data)):
-        if data[i] == data[i - 1] == data[i - 2]:
-            return True
-    return False
+from .models import Connection
 
 
 def find_core_paths(starting_core):
@@ -19,18 +15,32 @@ def find_core_paths(starting_core):
     stack = [(starting_core, [])]  # Stack of unexplored paths
     paths = []
     while stack:
-
+        print('############')
         node, current_path = stack.pop()
         if node not in visited:
             visited.add(node)
             current_path.append(node)
-            if all(n in visited for n in node.connected_cores.all()):
-                if not has_three_consecutive([n.cable for n in current_path]):
-                    paths.append(current_path)
+            core_to = [conn.core_to for conn in Connection.objects.filter(core_from=node)]
+            if all(n in visited for n in core_to):
+                paths.append(current_path)
 
             else:
-                for neighbor in node.connected_cores.all():
+                for neighbor in core_to:
                     if neighbor not in visited:
                         stack.append((neighbor, current_path.copy()))
 
-    return paths
+    result = []
+    for path in paths:
+        if path[0].cable == path[1].cable:
+
+            if path[-1].cable is None:
+                path.pop()
+            result.append(path[0])
+            for i in range(1, len(path)):
+                if result[-1].marker == path[i].marker:
+                    result.pop()
+                    result.append(path[i])
+                else:
+                    result.append(path[i])
+            break
+    return result
