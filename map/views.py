@@ -1,4 +1,4 @@
-from django.db.models import Q, Count
+from django.db.models import Q
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -7,7 +7,9 @@ from .models import POP, Client, Junction, Gpon, Cable, Core
 from .serializers import (POPCreateSerializer, ClientCreateSerializer, GponCreateSerializer, JunctionCreateSerializer,
                           POPListSerializer, ClientListSerializer, GponListSerializer,
                           JunctionListSerializer, CableCreateSerializer, CableListSerializer, CableSerializer,
-                          CoreSerializer)
+                          ClientCoreSerializer, CoreAssignSerializer, CoreSerializer)
+
+from .utility import find_core_paths
 
 
 class PopCreateView(generics.CreateAPIView):
@@ -55,6 +57,47 @@ class CableListView(generics.ListAPIView):
     serializer_class = CableListSerializer
 
 
+class CoreAssignView(generics.UpdateAPIView):
+    queryset = Core.objects.all()
+    serializer_class = CoreAssignSerializer
+
+
+class ClientPathsView(APIView):
+    def get(self, request, client_id):
+        try:
+            client = Client.objects.get(id=client_id)
+        except Client.DoesNotExist:
+            return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        cores = Core.objects.filter(marker=client.marker, assigned=True)
+        serialized_data = []
+        for core in cores:
+            path = find_core_paths(core)
+            data = {
+                'total_length': 0,
+                'path_direction': [],
+            }
+            path_direction = data['path_direction']
+
+            for c in path:
+                path_unit = {}
+                marker = c.marker
+                cable = c.cable
+                data['total_length'] += cable.length
+                path_unit['model_type'] = marker.type
+                path_unit['model_identifier'] = marker.identifier
+                path_unit['cable_identifier'] = cable.identifier
+                path_unit['total_cable_core'] = cable.number_of_cores
+                path_unit['cable_length'] = cable.length
+                path_unit['color'] = c.color
+                path_direction.append(path_unit)
+            data['total_length'] -= path_direction[-1]['cable_length']
+            path_direction[-1]['cable_length'] = 0
+            path_direction[-1]['cable_identifier'] = '/'
+            serialized_data.append(data)
+        return Response(serialized_data)
+
+
 class ClientCoresDetailsAPIView(APIView):
     def get(self, request, client_id):
         try:
@@ -63,6 +106,25 @@ class ClientCoresDetailsAPIView(APIView):
             return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
 
         cores = Core.objects.filter(marker=client.marker)
+        cables = set(core.cable for core in cores)
+
+        serialized_data = []
+        for cable in cables:
+            serialized_cable = CableSerializer(cable).data
+            serialized_cable['cores'] = ClientCoreSerializer(cores.filter(cable=cable), many=True).data
+            serialized_data.append(serialized_cable)
+
+        return Response(serialized_data)
+
+
+class JunctionCoresDetailsAPIView(APIView):
+    def get(self, request, junction_id):
+        try:
+            junction = Junction.objects.get(id=junction_id)
+        except Junction.DoesNotExist:
+            return Response({'error': 'Junction not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        cores = Core.objects.filter(marker=junction.marker)
         cables = set(core.cable for core in cores)
 
         serialized_data = []

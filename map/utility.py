@@ -33,7 +33,7 @@ def find_core_paths(starting_core):
     for path in paths:
         if path[0].cable == path[1].cable:
 
-            if path[-1].cable is None:
+            while path[-1].cable is None:
                 path.pop()
             result.append(path[0])
             for i in range(1, len(path)):

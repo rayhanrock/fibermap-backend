@@ -218,6 +218,12 @@ class CableListSerializer(serializers.ModelSerializer):
         return obj.get_polyline()
 
 
+class ClientCoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Core
+        fields = ['id', 'core_number', 'color', 'assigned', ]
+
+
 class CoreSerializer(serializers.ModelSerializer):
     last_point = serializers.SerializerMethodField()
 
@@ -231,9 +237,21 @@ class CoreSerializer(serializers.ModelSerializer):
         return data
 
 
+class CoreAssignSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Core
+        fields = '__all__'
+
+    def update(self, instance, validated_data):
+        instance.assigned = validated_data['assigned']
+        instance.save()
+        return instance
+
+
 class CableSerializer(serializers.ModelSerializer):
-    cores = CoreSerializer(many=True, read_only=True)
+    cores = ClientCoreSerializer(many=True, read_only=True)
 
     class Meta:
         model = Cable
         fields = ['id', 'identifier', 'number_of_cores', 'length', 'cores']
+
