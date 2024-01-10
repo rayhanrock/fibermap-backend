@@ -226,15 +226,23 @@ class ClientCoreSerializer(serializers.ModelSerializer):
 
 class CoreSerializer(serializers.ModelSerializer):
     last_point = serializers.SerializerMethodField()
+    connected_to = serializers.SerializerMethodField()
 
     class Meta:
         model = Core
-        fields = ['id', 'core_number', 'color', 'assigned', 'last_point']
+        fields = ['id', 'core_number', 'color', 'assigned', 'connected_to', 'last_point']
 
     def get_last_point(self, obj):
         last_connected_marker = find_core_paths(obj).pop().marker
         data = BasicMarkerSerializer(last_connected_marker).data
         return data
+
+    def get_connected_to(self, obj):
+        connection = Connection.objects.filter(core_from=obj)
+        for conn in connection:
+            if conn.core_from.cable != conn.core_to.cable:
+                return {'id': conn.core_to.id}
+        return None
 
 
 class CoreAssignSerializer(serializers.ModelSerializer):
@@ -254,4 +262,19 @@ class CableSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cable
         fields = ['id', 'identifier', 'number_of_cores', 'length', 'cores']
+
+
+class ConnectCoresSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Connection
+        fields = '__all__'
+
+    def create(self, validated_data):
+        core_from = validated_data['core_from']
+        core_to = validated_data['core_to']
+        Connection.objects.create(core_from=core_to, core_to=core_from)
+        return Connection.objects.create(core_from=core_from, core_to=core_to)
+
+
+
 

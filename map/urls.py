@@ -24,6 +24,9 @@ urlpatterns = [
     path('cable/create/', views.CableCreateView.as_view(), name='cable-create'),
 
     path('core/<int:pk>/update-assign-status/', views.CoreAssignView.as_view(), name='core-assign-withdraw'),
+
+    path('connect-cores/', views.ConnectCoresAPIView.as_view(), name='connect-cores'),
+    path('disconnect-cores/', views.DisConnectCoresAPIView.as_view(), name='disconnect-cores'),
     # path('network/', views.Network.as_view(), name='network'),
 
     path('network/', oldview.network_view, name='network_view'),

@@ -3,11 +3,11 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import POP, Client, Junction, Gpon, Cable, Core
+from .models import POP, Client, Junction, Gpon, Cable, Core, Connection
 from .serializers import (POPCreateSerializer, ClientCreateSerializer, GponCreateSerializer, JunctionCreateSerializer,
                           POPListSerializer, ClientListSerializer, GponListSerializer,
                           JunctionListSerializer, CableCreateSerializer, CableListSerializer, CableSerializer,
-                          ClientCoreSerializer, CoreAssignSerializer, CoreSerializer)
+                          ClientCoreSerializer, CoreAssignSerializer, CoreSerializer, ConnectCoresSerializer)
 
 from .utility import find_core_paths
 
@@ -134,3 +134,32 @@ class JunctionCoresDetailsAPIView(APIView):
             serialized_data.append(serialized_cable)
 
         return Response(serialized_data)
+
+
+class ConnectCoresAPIView(generics.CreateAPIView):
+    serializer_class = ConnectCoresSerializer
+
+
+class DisConnectCoresAPIView(APIView):
+    def post(self, request, format=None):
+        data = request.data
+
+        try:
+            core_from_id = data['core_from']
+            core_to_id = data['core_to']
+            core_from = Core.objects.get(id=core_from_id)
+            core_to = Core.objects.get(id=core_to_id)
+        except KeyError:
+            return Response({'error': 'core_from and core_to is required'}, status=status.HTTP_400_BAD_REQUEST)
+        except Core.DoesNotExist:
+            return Response({'error': 'Core not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        left = Connection.objects.filter(core_from=core_from, core_to=core_to).first()
+        right = Connection.objects.filter(core_from=core_to, core_to=core_from).first()
+
+        if left:
+            left.delete()
+        if right:
+            right.delete()
+
+        return Response({"status": "delete success"}, status=status.HTTP_204_NO_CONTENT)

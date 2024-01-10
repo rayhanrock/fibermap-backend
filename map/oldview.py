@@ -32,6 +32,7 @@ def find_core_paths(starting_core):
                     if neighbor not in visited:
                         stack.append((neighbor, current_path.copy()))
 
+    return paths
     result = []
     for path in paths:
         if path[0].cable == path[1].cable:
@@ -50,9 +51,10 @@ def find_core_paths(starting_core):
 
 
 def network_view(request):
-    start_core = Core.objects.get(id=31)
+    start_core = Core.objects.get(id=24)
 
     path = find_core_paths(start_core)
-    print(f"Path: {path}")
+    for p in path:
+        print(f"Path: {p}")
 
     return render(request, 'network_view.html')
