@@ -7,7 +7,8 @@ from .models import POP, Client, Junction, Gpon, Cable, Core, Connection
 from .serializers import (POPCreateSerializer, ClientCreateSerializer, GponCreateSerializer, JunctionCreateSerializer,
                           POPListSerializer, ClientListSerializer, GponListSerializer,
                           JunctionListSerializer, CableCreateSerializer, CableListSerializer, CableSerializer,
-                          ClientCoreSerializer, CoreAssignSerializer, CoreSerializer, ConnectCoresSerializer)
+                          ClientCoreSerializer, CoreAssignSerializer, JunctionCoreSerializer, ConnectCoresSerializer,
+                          PopCoreSerializer)
 
 from .utility import find_core_paths
 
@@ -130,9 +131,64 @@ class JunctionCoresDetailsAPIView(APIView):
         serialized_data = []
         for cable in cables:
             serialized_cable = CableSerializer(cable).data
-            serialized_cable['cores'] = CoreSerializer(cores.filter(cable=cable), many=True).data
+            serialized_cable['cores'] = JunctionCoreSerializer(cores.filter(cable=cable), many=True).data
             serialized_data.append(serialized_cable)
 
+        return Response(serialized_data)
+
+
+class PopCoresDetailsAPIView(APIView):
+    def get(self, request, pop_id):
+        try:
+            pop = POP.objects.get(id=pop_id)
+        except POP.DoesNotExist:
+            return Response({'error': 'POP not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        cores = Core.objects.filter(marker=pop.marker)
+        cables = set(core.cable for core in cores)
+
+        serialized_data = []
+        for cable in cables:
+            serialized_cable = CableSerializer(cable).data
+            serialized_cable['cores'] = PopCoreSerializer(cores.filter(cable=cable), many=True).data
+            serialized_data.append(serialized_cable)
+
+        return Response(serialized_data)
+
+
+class PopPathsView(APIView):
+    def get(self, request, pop_id):
+        try:
+            pop = POP.objects.get(id=pop_id)
+        except POP.DoesNotExist:
+            return Response({'error': 'Pop not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        cores = Core.objects.filter(marker=pop.marker, assigned=True)
+        serialized_data = []
+        for core in cores:
+            path = find_core_paths(core)
+            data = {
+                'total_length': 0,
+                'path_direction': [],
+            }
+            path_direction = data['path_direction']
+
+            for c in path:
+                path_unit = {}
+                marker = c.marker
+                cable = c.cable
+                data['total_length'] += cable.length
+                path_unit['model_type'] = marker.type
+                path_unit['model_identifier'] = marker.identifier
+                path_unit['cable_identifier'] = cable.identifier
+                path_unit['total_cable_core'] = cable.number_of_cores
+                path_unit['cable_length'] = cable.length
+                path_unit['color'] = c.color
+                path_direction.append(path_unit)
+            data['total_length'] -= path_direction[-1]['cable_length']
+            path_direction[-1]['cable_length'] = 0
+            path_direction[-1]['cable_identifier'] = '/'
+            serialized_data.append(data)
         return Response(serialized_data)
 
 

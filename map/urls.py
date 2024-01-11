@@ -5,6 +5,9 @@ from map import oldview
 urlpatterns = [
     path('pop/', views.PopListView.as_view(), name='pop-list'),
     path('pop/create/', views.PopCreateView.as_view(), name='pop-create'),
+    path('pop-details/<int:pop_id>/cores/', views.PopCoresDetailsAPIView.as_view(),
+         name='pop-core-details'),
+    path('pop/<int:pop_id>/paths/', views.PopPathsView.as_view(), name='pop-path'),
 
     path('client/', views.ClientListView.as_view(), name='client-create'),
     path('client/create/', views.ClientCreateView.as_view(), name='client-list'),

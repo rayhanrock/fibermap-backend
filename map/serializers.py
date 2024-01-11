@@ -224,7 +224,22 @@ class ClientCoreSerializer(serializers.ModelSerializer):
         fields = ['id', 'core_number', 'color', 'assigned', ]
 
 
-class CoreSerializer(serializers.ModelSerializer):
+class PopCoreSerializer(serializers.ModelSerializer):
+    connected_to = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Core
+        fields = ['id', 'core_number', 'color', 'assigned', 'connected_to', ]
+
+    def get_connected_to(self, obj):
+        connection = Connection.objects.filter(core_from=obj)
+        for conn in connection:
+            if conn.core_from.cable != conn.core_to.cable:
+                return {'id': conn.core_to.id}
+        return None
+
+
+class JunctionCoreSerializer(serializers.ModelSerializer):
     last_point = serializers.SerializerMethodField()
     connected_to = serializers.SerializerMethodField()
 
@@ -274,7 +289,3 @@ class ConnectCoresSerializer(serializers.ModelSerializer):
         core_to = validated_data['core_to']
         Connection.objects.create(core_from=core_to, core_to=core_from)
         return Connection.objects.create(core_from=core_from, core_to=core_to)
-
-
-
-
