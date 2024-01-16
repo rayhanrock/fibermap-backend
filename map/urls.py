@@ -22,6 +22,13 @@ urlpatterns = [
 
     path('gpon/', views.GponListView.as_view(), name='gpon-create'),
     path('gpon/create/', views.GponCreateView.as_view(), name='gpon-list'),
+    path('gpon-details/<int:gpon_id>/cores/', views.GponCoresDetailsAPIView.as_view(),
+         name='gpon-core-details'),
+    path('gpon/<int:gpon_id>/add-input-cable/', views.AddGponInputCable.as_view(), name='gpon-add-input-cable'),
+    path('gpon/<int:gpon_id>/remove-input-cable/', views.RemoveGponInputCable.as_view(),
+         name='gpon-remove-input-cable'),
+    path('gpon/<int:gpon_id>/assign-core/', views.GponInputCoreAssignView.as_view(), name='gpon-input-assign-core'),
+    path('gpon/<int:gpon_id>/withdraw-core/', views.GponInputCoreWithdrawView.as_view(), name='gpon-input-withdraw-core'),
 
     path('cable/', views.CableListView.as_view(), name='cable-list'),
     path('cable/create/', views.CableCreateView.as_view(), name='cable-create'),

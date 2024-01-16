@@ -8,7 +8,7 @@ from .serializers import (POPCreateSerializer, ClientCreateSerializer, GponCreat
                           POPListSerializer, ClientListSerializer, GponListSerializer,
                           JunctionListSerializer, CableCreateSerializer, CableListSerializer, CableSerializer,
                           ClientCoreSerializer, CoreAssignSerializer, JunctionCoreSerializer, ConnectCoresSerializer,
-                          PopCoreSerializer)
+                          PopCoreSerializer, GponOutCoreSerializer, GponOutputCableCoreSerializer)
 
 from .utility import find_core_paths
 
@@ -135,6 +135,149 @@ class JunctionCoresDetailsAPIView(APIView):
             serialized_data.append(serialized_cable)
 
         return Response(serialized_data)
+
+
+class GponCoresDetailsAPIView(APIView):
+    def get(self, request, gpon_id):
+        try:
+            gpon = Gpon.objects.get(id=gpon_id)
+        except Gpon.DoesNotExist:
+            return Response({'error': 'Gpon not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        cores = Core.objects.filter(marker=gpon.marker)
+        cables = set(core.cable for core in cores if core.cable is not None)
+
+        input_cable = gpon.input_cable
+        gpon_input_cable_data = None
+        if input_cable is not None:
+            cables.remove(input_cable)
+            serialized_cable = CableSerializer(input_cable).data
+            serialized_cable['cores'] = GponOutputCableCoreSerializer(cores.filter(cable=input_cable), many=True).data
+            gpon_input_cable_data = serialized_cable
+
+        gpon_out_details = {
+            'number_of_splitter': gpon.splitter,
+            'input_core_id': gpon.input_core.id,
+            'output_cores': []
+        }
+        gpon_out_cores = cores.filter(cable=None).exclude(core_number=0)
+        for core in gpon_out_cores:
+            gpon_out_details['output_cores'].append(GponOutCoreSerializer(core).data)
+
+        gpon_output_cable_data = []
+
+        for cable in cables:
+            serialized_cable = CableSerializer(cable).data
+            serialized_cable['cores'] = GponOutputCableCoreSerializer(cores.filter(cable=cable), many=True).data
+            gpon_output_cable_data.append(serialized_cable)
+
+        data = {
+            'input_cable': gpon_input_cable_data,
+            'out': gpon_out_details,
+            'output_cables': gpon_output_cable_data
+        }
+        return Response(data)
+
+
+class AddGponInputCable(APIView):
+    def post(self, request, gpon_id):
+        try:
+            gpon = Gpon.objects.get(id=gpon_id)
+        except Gpon.DoesNotExist:
+            return Response({'error': 'Gpon not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if gpon.input_cable is not None:
+            return Response({'error': 'Gpon already has an input cable'}, status=status.HTTP_400_BAD_REQUEST)
+        data = request.data
+
+        try:
+            cable_id = data['cable_id']
+            cable = Cable.objects.get(id=cable_id)
+        except KeyError:
+            return Response({'error': 'cable_id is required'}, status=status.HTTP_404_NOT_FOUND)
+        except Cable.DoesNotExist:
+            return Response({'error': 'Cable not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        gpon.input_cable = cable
+        gpon.save()
+        return Response({'success': 'Gpon input cable added'}, status=status.HTTP_200_OK)
+
+
+class RemoveGponInputCable(APIView):
+    def get(self, request, gpon_id):
+        try:
+            gpon = Gpon.objects.get(id=gpon_id)
+        except Gpon.DoesNotExist:
+            return Response({'error': 'Gpon not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if gpon.input_cable is None:
+            return Response({'error': 'Gpon does not have an input cable'}, status=status.HTTP_400_BAD_REQUEST)
+
+        gpon.input_cable = None
+        gpon.save()
+        return Response({'success': 'Gpon input cable removed'}, status=status.HTTP_200_OK)
+
+
+class GponInputCoreAssignView(APIView):
+    def post(self, request, gpon_id):
+        try:
+            gpon = Gpon.objects.get(id=gpon_id)
+        except Gpon.DoesNotExist:
+            return Response({'error': 'Gpon not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if gpon.input_cable is None:
+            return Response({'error': 'Gpon does not have an input cable'}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data
+
+        try:
+            core_id = data['core_id']
+            core = Core.objects.get(id=core_id)
+        except KeyError:
+            return Response({'error': 'core_id is required'}, status=status.HTTP_404_NOT_FOUND)
+        except Core.DoesNotExist:
+            return Response({'error': 'Core not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        Connection.objects.create(
+            core_from=gpon.input_core,
+            core_to=core
+        )
+        Connection.objects.create(
+            core_from=core,
+            core_to=gpon.input_core
+        )
+        return Response({'success': 'Core assigned'}, status=status.HTTP_200_OK)
+
+
+class GponInputCoreWithdrawView(APIView):
+    def post(self, request, gpon_id):
+        try:
+            gpon = Gpon.objects.get(id=gpon_id)
+        except Gpon.DoesNotExist:
+            return Response({'error': 'Gpon not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if gpon.input_cable is None:
+            return Response({'error': 'Gpon does not have an input cable'}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data
+
+        try:
+            core_id = data['core_id']
+            core = Core.objects.get(id=core_id)
+        except KeyError:
+            return Response({'error': 'core_id is required'}, status=status.HTTP_404_NOT_FOUND)
+        except Core.DoesNotExist:
+            return Response({'error': 'Core not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        left = Connection.objects.filter(core_from=core, core_to=gpon.input_core).first()
+        right = Connection.objects.filter(core_from=gpon.input_core, core_to=core).first()
+
+        if left:
+            left.delete()
+        if right:
+            right.delete()
+
+        return Response({'success': 'Core assigned'}, status=status.HTTP_200_OK)
 
 
 class PopCoresDetailsAPIView(APIView):

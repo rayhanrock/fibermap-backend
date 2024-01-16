@@ -260,6 +260,56 @@ class JunctionCoreSerializer(serializers.ModelSerializer):
         return None
 
 
+class GponInputCableCoreSerializer(serializers.ModelSerializer):
+    last_point = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Core
+        fields = ['id', 'core_number', 'color', 'assigned', 'last_point']
+
+    def get_last_point(self, obj):
+        last_connected_marker = find_core_paths(obj).pop().marker
+        data = BasicMarkerSerializer(last_connected_marker).data
+        return data
+
+
+class GponOutCoreSerializer(serializers.ModelSerializer):
+    connected_to = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Core
+        fields = ['id', 'core_number', 'connected_to']
+
+    def get_connected_to(self, obj):
+        connection = Connection.objects.filter(core_from=obj)
+        for conn in connection:
+            print(conn)
+            if conn.core_to.cable is not None:
+                return {'id': conn.core_to.id}
+        return None
+
+
+class GponOutputCableCoreSerializer(serializers.ModelSerializer):
+    last_point = serializers.SerializerMethodField()
+    connected_to = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Core
+        fields = ['id', 'core_number', 'color', 'connected_to', 'last_point']
+
+    def get_last_point(self, obj):
+        last_connected_marker = find_core_paths(obj).pop().marker
+        data = BasicMarkerSerializer(last_connected_marker).data
+        return data
+
+    def get_connected_to(self, obj):
+        connection = Connection.objects.filter(core_from=obj)
+        for conn in connection:
+            if conn.core_to.cable is None:
+                return {'id': conn.core_to.id}
+        return None
+
+
 class CoreAssignSerializer(serializers.ModelSerializer):
     class Meta:
         model = Core
