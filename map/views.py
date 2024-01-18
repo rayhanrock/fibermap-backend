@@ -138,6 +138,7 @@ class JunctionCoresDetailsAPIView(APIView):
 
 
 class GponCoresDetailsAPIView(APIView):
+
     def get(self, request, gpon_id):
         try:
             gpon = Gpon.objects.get(id=gpon_id)
@@ -219,24 +220,30 @@ class RemoveGponInputCable(APIView):
 
 
 class GponInputCoreAssignView(APIView):
+
     def post(self, request, gpon_id):
+        data = request.data
+
         try:
             gpon = Gpon.objects.get(id=gpon_id)
+            core_id = data['core_id']
         except Gpon.DoesNotExist:
             return Response({'error': 'Gpon not found'}, status=status.HTTP_404_NOT_FOUND)
+        except KeyError:
+            return Response({'error': 'core_id is required'}, status=status.HTTP_404_NOT_FOUND)
 
         if gpon.input_cable is None:
             return Response({'error': 'Gpon does not have an input cable'}, status=status.HTTP_400_BAD_REQUEST)
 
-        data = request.data
+        input_cores = Core.objects.filter(marker=gpon.marker, cable=gpon.input_cable)
+        core = input_cores.filter(id=core_id).first()
+        if core is None:
+            return Response({'error': 'Invalid Core to assign'}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            core_id = data['core_id']
-            core = Core.objects.get(id=core_id)
-        except KeyError:
-            return Response({'error': 'core_id is required'}, status=status.HTTP_404_NOT_FOUND)
-        except Core.DoesNotExist:
-            return Response({'error': 'Core not found'}, status=status.HTTP_404_NOT_FOUND)
+        for cr in input_cores:
+            connected_to = self.get_connected_to(cr)
+            if connected_to is not None:
+                return Response({'error': 'Core already connected'}, status=status.HTTP_400_BAD_REQUEST)
 
         Connection.objects.create(
             core_from=gpon.input_core,
@@ -247,6 +254,13 @@ class GponInputCoreAssignView(APIView):
             core_to=gpon.input_core
         )
         return Response({'success': 'Core assigned'}, status=status.HTTP_200_OK)
+
+    def get_connected_to(self, core):
+        connection = Connection.objects.filter(core_from=core)
+        for conn in connection:
+            if conn.core_to.cable is None:
+                return {'id': conn.core_to.id}
+        return None
 
 
 class GponInputCoreWithdrawView(APIView):
