@@ -182,26 +182,42 @@ class GponCoresDetailsAPIView(APIView):
 
 class AddGponInputCable(APIView):
     def post(self, request, gpon_id):
+        data = request.data
         try:
             gpon = Gpon.objects.get(id=gpon_id)
+            cable_id = data['cable_id']
+
         except Gpon.DoesNotExist:
             return Response({'error': 'Gpon not found'}, status=status.HTTP_404_NOT_FOUND)
+        except KeyError:
+            return Response({'error': 'cable_id is required'}, status=status.HTTP_404_NOT_FOUND)
 
         if gpon.input_cable is not None:
             return Response({'error': 'Gpon already has an input cable'}, status=status.HTTP_400_BAD_REQUEST)
-        data = request.data
 
-        try:
-            cable_id = data['cable_id']
-            cable = Cable.objects.get(id=cable_id)
-        except KeyError:
-            return Response({'error': 'cable_id is required'}, status=status.HTTP_404_NOT_FOUND)
-        except Cable.DoesNotExist:
-            return Response({'error': 'Cable not found'}, status=status.HTTP_404_NOT_FOUND)
+        cables = Cable.objects.filter(Q(starting_point=gpon.marker) | Q(ending_point=gpon.marker))
+        cable = cables.filter(id=cable_id).first()
+
+        if cable is None:
+            return Response({'error': 'Invalid cable'}, status=status.HTTP_400_BAD_REQUEST)
+
+        cores = Core.objects.filter(marker=gpon.marker, cable=cable)
+        for core in cores:
+            connected_to = self.get_connected_to(core)
+            if connected_to is not None:
+                return Response({'error': 'Disconnect connected cores first to add as input cable'},
+                                status=status.HTTP_400_BAD_REQUEST)
 
         gpon.input_cable = cable
         gpon.save()
         return Response({'success': 'Gpon input cable added'}, status=status.HTTP_200_OK)
+
+    def get_connected_to(self, obj):
+        connection = Connection.objects.filter(core_from=obj)
+        for conn in connection:
+            if conn.core_to.cable is None:
+                return {'id': conn.core_to.id}
+        return None
 
 
 class RemoveGponInputCable(APIView):
