@@ -214,9 +214,23 @@ class RemoveGponInputCable(APIView):
         if gpon.input_cable is None:
             return Response({'error': 'Gpon does not have an input cable'}, status=status.HTTP_400_BAD_REQUEST)
 
+        input_cores = Core.objects.filter(marker=gpon.marker, cable=gpon.input_cable)
+        for cr in input_cores:
+            connected_to = self.get_connected_to(cr)
+            if connected_to is not None:
+                return Response({'error': 'Disconnect assigned core first to remove input cable'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
         gpon.input_cable = None
         gpon.save()
         return Response({'success': 'Gpon input cable removed'}, status=status.HTTP_200_OK)
+
+    def get_connected_to(self, core):
+        connection = Connection.objects.filter(core_from=core)
+        for conn in connection:
+            if conn.core_to.cable is None:
+                return {'id': conn.core_to.id}
+        return None
 
 
 class GponInputCoreAssignView(APIView):
