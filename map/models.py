@@ -16,7 +16,7 @@ class Marker(models.Model):
     type = models.CharField(max_length=100, choices=MarkerType.choices)
     latitude = models.FloatField()
     longitude = models.FloatField()
-    address = models.CharField(max_length=100, null=True, blank=True)
+    address = models.CharField(max_length=200, null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
 
@@ -53,7 +53,7 @@ class Client(models.Model):
 
 
 class Cable(models.Model):
-    identifier = models.CharField(max_length=100, null=True, blank=True)
+    identifier = models.CharField(max_length=100)
     type = models.CharField(max_length=100, null=True, blank=True)
     start_from = models.CharField(max_length=100, choices=MarkerType.choices)
     starting_point = models.ForeignKey(Marker, on_delete=models.DO_NOTHING, related_name='starting_point')
@@ -72,7 +72,7 @@ class Cable(models.Model):
         return json.loads(self.polyline)
 
     def __str__(self):
-        return self.identifier
+        return f'{self.identifier}'
 
 
 class Core(models.Model):
@@ -81,7 +81,6 @@ class Core(models.Model):
     core_number = models.IntegerField()
     color = models.CharField(max_length=100)
     assigned = models.BooleanField()
-    connected_cores = models.ManyToManyField("self", blank=True)
 
     def __str__(self):
         return f"{self.marker.type} {self.cable} - {self.core_number}"
@@ -93,7 +92,6 @@ class Gpon(models.Model):
     marker = models.OneToOneField(Marker, on_delete=models.CASCADE)
     input_cable = models.ForeignKey(Cable, on_delete=models.CASCADE, null=True, blank=True)
     input_core = models.ForeignKey(Core, on_delete=models.CASCADE, related_name='input_core', null=True, blank=True)
-    output_cores = models.ManyToManyField(Core, related_name='output_cores', blank=True)
     splitter = models.IntegerField()
 
     def __str__(self):

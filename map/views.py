@@ -8,7 +8,7 @@ from .serializers import (POPCreateSerializer, ClientCreateSerializer, GponCreat
                           POPListSerializer, ClientListSerializer, GponListSerializer,
                           JunctionListSerializer, CableCreateSerializer, CableListSerializer, CableSerializer,
                           ClientCoreSerializer, CoreAssignSerializer, JunctionCoreSerializer, ConnectCoresSerializer,
-                          PopCoreSerializer, GponOutCoreSerializer, GponOutputCableCoreSerializer)
+                          PopCoreSerializer, GponOutCoreSerializer, GponCableCoreSerializer)
 
 from .utility import find_core_paths
 
@@ -87,6 +87,8 @@ class ClientPathsView(APIView):
                 data['total_length'] += cable.length
                 path_unit['model_type'] = marker.type
                 path_unit['model_identifier'] = marker.identifier
+                path_unit['cable_id'] = cable.id
+                path_unit['cable_line'] = cable.get_polyline()
                 path_unit['cable_identifier'] = cable.identifier
                 path_unit['total_cable_core'] = cable.number_of_cores
                 path_unit['cable_length'] = cable.length
@@ -153,7 +155,7 @@ class GponCoresDetailsAPIView(APIView):
         if input_cable is not None:
             cables.remove(input_cable)
             serialized_cable = CableSerializer(input_cable).data
-            serialized_cable['cores'] = GponOutputCableCoreSerializer(cores.filter(cable=input_cable), many=True).data
+            serialized_cable['cores'] = GponCableCoreSerializer(cores.filter(cable=input_cable), many=True).data
             gpon_input_cable_data = serialized_cable
 
         gpon_out_details = {
@@ -169,7 +171,7 @@ class GponCoresDetailsAPIView(APIView):
 
         for cable in cables:
             serialized_cable = CableSerializer(cable).data
-            serialized_cable['cores'] = GponOutputCableCoreSerializer(cores.filter(cable=cable), many=True).data
+            serialized_cable['cores'] = GponCableCoreSerializer(cores.filter(cable=cable), many=True).data
             gpon_output_cable_data.append(serialized_cable)
 
         data = {
@@ -367,6 +369,7 @@ class PopPathsView(APIView):
                 data['total_length'] += cable.length
                 path_unit['model_type'] = marker.type
                 path_unit['model_identifier'] = marker.identifier
+                path_unit['cable_id'] = cable.id
                 path_unit['cable_identifier'] = cable.identifier
                 path_unit['total_cable_core'] = cable.number_of_cores
                 path_unit['cable_length'] = cable.length

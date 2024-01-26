@@ -13,6 +13,21 @@ class MarkerSerializer(serializers.ModelSerializer):
         model = Marker
         fields = ('id', 'type', 'latitude', 'longitude', 'address', 'notes', 'description')
 
+    def validate_address(self, value):
+        if not value:
+            raise serializers.ValidationError('Address is required')
+        return value
+
+    def validate_latitude(self, value):
+        if not value:
+            raise serializers.ValidationError('Latitude is required')
+        return value
+
+    def validate_longitude(self, value):
+        if not value:
+            raise serializers.ValidationError('Longitude is required')
+        return value
+
 
 class BasicMarkerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -34,6 +49,14 @@ class POPCreateSerializer(serializers.ModelSerializer):
         marker.save()
         pop = POP.objects.create(marker=marker, **validated_data)
         return pop
+
+    def validate_identifier(self, value):
+        if not value:
+            raise serializers.ValidationError('Identifier is required')
+        value = value.strip()
+        if POP.objects.filter(identifier=value).exists():
+            raise serializers.ValidationError('Identifier already exists')
+        return value
 
 
 class POPListSerializer(serializers.ModelSerializer):
@@ -61,6 +84,14 @@ class ClientCreateSerializer(serializers.ModelSerializer):
         client = Client.objects.create(marker=marker, **validated_data)
         return client
 
+    def validate_identifier(self, value):
+        if not value:
+            raise serializers.ValidationError('Identifier is required')
+        value = value.strip()
+        if Client.objects.filter(identifier=value).exists():
+            raise serializers.ValidationError('Identifier already exists')
+        return value
+
 
 class ClientListSerializer(serializers.ModelSerializer):
     latitude = serializers.FloatField(source='marker.latitude')
@@ -86,6 +117,14 @@ class JunctionCreateSerializer(serializers.ModelSerializer):
         marker.save()
         junction = Junction.objects.create(marker=marker, **validated_data)
         return junction
+
+    def validate_identifier(self, value):
+        if not value:
+            raise serializers.ValidationError('Identifier is required')
+        value = value.strip()
+        if Junction.objects.filter(identifier=value).exists():
+            raise serializers.ValidationError('Identifier already exists')
+        return value
 
 
 class JunctionListSerializer(serializers.ModelSerializer):
@@ -119,6 +158,19 @@ class GponCreateSerializer(serializers.ModelSerializer):
             Connection.objects.create(core_from=obj, core_to=input_core)
         return gpon
 
+    def validate_identifier(self, value):
+        if not value:
+            raise serializers.ValidationError('Identifier is required')
+        value = value.strip()
+        if Gpon.objects.filter(identifier=value).exists():
+            raise serializers.ValidationError('Identifier already exists')
+        return value
+
+    def validate_splitter(self, value):
+        if value not in [2, 4, 8, 12, 16, 32]:
+            raise serializers.ValidationError('Splitter must be 2, 4, 8, 12, 16 or 32')
+        return value
+
 
 class GponListSerializer(serializers.ModelSerializer):
     latitude = serializers.FloatField(source='marker.latitude')
@@ -146,22 +198,62 @@ class CableCreateSerializer(serializers.ModelSerializer):
             'JUNCTION': Junction,
             'GPON': Gpon
         }
+
         start_form = data['start_from']
-        start_form_type = choices[start_form]
-        starting_point = start_form_type.objects.get(id=data['starting_point']).marker.id
-        data['starting_point'] = starting_point
+        if start_form in choices:
+            starting_point = choices[start_form].objects.filter(id=data['starting_point']).first()
+            if starting_point:
+                data['starting_point'] = starting_point.marker.id
 
         end_to = data['end_to']
-        end_to_type = choices[end_to]
-        ending_point = end_to_type.objects.get(id=data['ending_point']).marker.id
-        data['ending_point'] = ending_point
+        if end_to in choices:
+            ending_point = choices[start_form].objects.filter(id=data['ending_point']).first()
+            if ending_point:
+                data['ending_point'] = ending_point.marker.id
 
         return super().to_internal_value(data)
 
     def create(self, validated_data):
-        polyline = validated_data['polyline']
         starting_point = validated_data['starting_point']
         ending_point = validated_data['ending_point']
+
+        num_of_core = validated_data['number_of_cores']
+        instance = super().create(validated_data)
+
+        colors = ['red', 'orange', 'yellow', 'olive', 'green', 'teal', 'blue', 'violet', 'purple', 'pink', 'brown',
+                  'black']
+        len_color = len(colors)
+        for i in range(1, num_of_core + 1):
+            color_index = i % len_color
+            start_marker_side = Core.objects.create(
+                marker=starting_point,
+                cable=instance,
+                core_number=i,
+                color=colors[color_index],
+                assigned=False
+            )
+            end_marker_side = Core.objects.create(
+                marker=ending_point,
+                cable=instance,
+                core_number=i,
+                color=colors[color_index],
+                assigned=False
+            )
+
+            Connection.objects.create(core_from=start_marker_side, core_to=end_marker_side)
+            Connection.objects.create(core_from=end_marker_side, core_to=start_marker_side)
+
+        return instance
+
+    def validate_number_of_cores(self, value):
+        if value not in [2, 4, 8, 12, 24, 36, 48]:
+            raise serializers.ValidationError('Number of cores must be 2, 4, 8, 12, 24, 36 or 48')
+        return value
+
+    def validate(self, data):
+        polyline = data['polyline']
+        starting_point = data['starting_point']
+        ending_point = data['ending_point']
 
         start_position = {
             "lat": starting_point.latitude,
@@ -174,37 +266,23 @@ class CableCreateSerializer(serializers.ModelSerializer):
         }
 
         first_point = polyline.pop(0)
+        lat_error = first_point['lat'] - start_position['lat']
+        lng_error = first_point['lng'] - start_position['lng']
+        if abs(lat_error) > 0.0001 or abs(lng_error) > 0.0001:
+            raise serializers.ValidationError("try draw polyline from starting point as close as possible")
+
         polyline.insert(0, start_position)
-        # Remove and insert the last element
+
         last_point = polyline.pop()
+        lat_error = last_point['lat'] - end_position['lat']
+        lng_error = last_point['lng'] - end_position['lng']
+        if abs(lat_error) > 0.001 or abs(lng_error) > 0.001:
+            raise serializers.ValidationError("try draw polyline from ending point as close as possible")
+
         polyline.append(end_position)
+        data['polyline'] = json.dumps(polyline)
 
-        num_of_core = validated_data['number_of_cores']
-        # Serialize array before creating the model instance
-        validated_data['polyline'] = json.dumps(polyline)
-        print(validated_data)
-        instance = super().create(validated_data)
-
-        for i in range(1, num_of_core + 1):
-            start_marker_side = Core.objects.create(
-                marker=starting_point,
-                cable=instance,
-                core_number=i,
-                color='red',
-                assigned=False
-            )
-            end_marker_side = Core.objects.create(
-                marker=ending_point,
-                cable=instance,
-                core_number=i,
-                color='red',
-                assigned=False
-            )
-            # start_marker_side.connected_cores.add(end_marker_side)
-            Connection.objects.create(core_from=start_marker_side, core_to=end_marker_side)
-            Connection.objects.create(core_from=end_marker_side, core_to=start_marker_side)
-
-        return instance
+        return data
 
 
 class CableListSerializer(serializers.ModelSerializer):
@@ -260,19 +338,6 @@ class JunctionCoreSerializer(serializers.ModelSerializer):
         return None
 
 
-class GponInputCableCoreSerializer(serializers.ModelSerializer):
-    last_point = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Core
-        fields = ['id', 'core_number', 'color', 'assigned', 'last_point']
-
-    def get_last_point(self, obj):
-        last_connected_marker = find_core_paths(obj).pop().marker
-        data = BasicMarkerSerializer(last_connected_marker).data
-        return data
-
-
 class GponOutCoreSerializer(serializers.ModelSerializer):
     connected_to = serializers.SerializerMethodField()
 
@@ -289,7 +354,7 @@ class GponOutCoreSerializer(serializers.ModelSerializer):
         return None
 
 
-class GponOutputCableCoreSerializer(serializers.ModelSerializer):
+class GponCableCoreSerializer(serializers.ModelSerializer):
     last_point = serializers.SerializerMethodField()
     connected_to = serializers.SerializerMethodField()
 
