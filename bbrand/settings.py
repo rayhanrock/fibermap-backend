@@ -27,6 +27,7 @@ DEBUG = True
 ALLOWED_HOSTS = ['rawlife.pythonanywhere.com', '127.0.0.1']
 CORS_ORIGIN_WHITELIST = [
     'http://127.0.0.1:3000',
+    'fibermap-frontend.vercel.app',
 
 ]
 # Application definition
