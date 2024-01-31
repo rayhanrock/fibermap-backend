@@ -207,7 +207,7 @@ class CableCreateSerializer(serializers.ModelSerializer):
 
         end_to = data['end_to']
         if end_to in choices:
-            ending_point = choices[start_form].objects.filter(id=data['ending_point']).first()
+            ending_point = choices[end_to].objects.filter(id=data['ending_point']).first()
             if ending_point:
                 data['ending_point'] = ending_point.marker.id
 
@@ -268,7 +268,7 @@ class CableCreateSerializer(serializers.ModelSerializer):
         first_point = polyline.pop(0)
         lat_error = first_point['lat'] - start_position['lat']
         lng_error = first_point['lng'] - start_position['lng']
-        if abs(lat_error) > 0.0001 or abs(lng_error) > 0.0001:
+        if abs(lat_error) > 0.001 or abs(lng_error) > 0.001:
             raise serializers.ValidationError("try draw polyline from starting point as close as possible")
 
         polyline.insert(0, start_position)
