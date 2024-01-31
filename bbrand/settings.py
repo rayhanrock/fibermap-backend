@@ -24,10 +24,10 @@ SECRET_KEY = 'django-insecure-e)0+v*8x@u)b@)l(&8fxo!^2g$py8+b+&h4+1o0vqnf45mwuq(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['rawlife.pythonanywhere.com', '127.0.0.1']
 CORS_ORIGIN_WHITELIST = [
     'http://127.0.0.1:3000',
-    'rawlife.pythonanywhere.com',
+
 ]
 # Application definition
 
