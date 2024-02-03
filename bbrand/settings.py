@@ -27,7 +27,6 @@ DEBUG = True
 ALLOWED_HOSTS = ['rawlife.pythonanywhere.com', '127.0.0.1']
 CORS_ORIGIN_WHITELIST = [
     'http://127.0.0.1:3000',
-    'fibermap-frontend.vercel.app',
 
 ]
 # Application definition
@@ -85,6 +84,15 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# DATABASES = {
+#     'ENGINE': 'django.db.backends.mysql',
+#     'NAME': 'rayhanbillah$quiz',
+#     'USER': 'rayhanbillah',
+#     'PASSWORD': 'seizetheday',
+#     'HOST': 'rayhanbillah.mysql.pythonanywhere-services.com',
+#     'PORT': '3306',
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

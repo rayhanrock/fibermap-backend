@@ -213,6 +213,38 @@ class CableCreateSerializer(serializers.ModelSerializer):
 
         return super().to_internal_value(data)
 
+    # def create(self, validated_data):
+    #     starting_point = validated_data['starting_point']
+    #     ending_point = validated_data['ending_point']
+    #
+    #     num_of_core = validated_data['number_of_cores']
+    #     instance = super().create(validated_data)
+    #
+    #     colors = ['red', 'orange', 'yellow', 'olive', 'green', 'teal', 'blue', 'violet', 'purple', 'pink', 'brown',
+    #               'black']
+    #     len_color = len(colors)
+    #     for i in range(1, num_of_core + 1):
+    #         color_index = i % len_color
+    #         start_marker_side = Core.objects.create(
+    #             marker=starting_point,
+    #             cable=instance,
+    #             core_number=i,
+    #             color=colors[color_index],
+    #             assigned=False
+    #         )
+    #         end_marker_side = Core.objects.create(
+    #             marker=ending_point,
+    #             cable=instance,
+    #             core_number=i,
+    #             color=colors[color_index],
+    #             assigned=False
+    #         )
+    #
+    #         Connection.objects.create(core_from=start_marker_side, core_to=end_marker_side)
+    #         Connection.objects.create(core_from=end_marker_side, core_to=start_marker_side)
+    #
+    #     return instance
+
     def create(self, validated_data):
         starting_point = validated_data['starting_point']
         ending_point = validated_data['ending_point']
@@ -223,25 +255,41 @@ class CableCreateSerializer(serializers.ModelSerializer):
         colors = ['red', 'orange', 'yellow', 'olive', 'green', 'teal', 'blue', 'violet', 'purple', 'pink', 'brown',
                   'black']
         len_color = len(colors)
+        start_list = []
+        end_list = []
         for i in range(1, num_of_core + 1):
             color_index = i % len_color
-            start_marker_side = Core.objects.create(
+            start_marker_side = Core(
                 marker=starting_point,
                 cable=instance,
                 core_number=i,
                 color=colors[color_index],
                 assigned=False
             )
-            end_marker_side = Core.objects.create(
+            end_marker_side = Core(
                 marker=ending_point,
                 cable=instance,
                 core_number=i,
                 color=colors[color_index],
                 assigned=False
             )
+            start_list.append(start_marker_side)
+            end_list.append(end_marker_side)
 
-            Connection.objects.create(core_from=start_marker_side, core_to=end_marker_side)
-            Connection.objects.create(core_from=end_marker_side, core_to=start_marker_side)
+        Core.objects.bulk_create(
+            start_list + end_list
+        )
+        st = Core.objects.filter(cable=instance, marker=starting_point).order_by('core_number')
+        en = Core.objects.filter(cable=instance, marker=ending_point).order_by('core_number')
+
+        connections = [
+                          Connection(core_from=start, core_to=end)
+                          for start, end in zip(st, en)
+                      ] + [
+                          Connection(core_from=end, core_to=start)
+                          for start, end in zip(st, en)
+                      ]
+        Connection.objects.bulk_create(connections)
 
         return instance
 
