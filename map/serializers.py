@@ -40,7 +40,7 @@ class POPCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = POP
-        fields = ('id', 'identifier', 'name', 'marker')
+        fields = ('id', 'identifier', 'name', 'marker', 'pop_type')
 
     def create(self, validated_data):
         marker_data = validated_data.pop('marker')
@@ -66,7 +66,7 @@ class POPListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = POP
-        fields = ('id', 'identifier', 'name', 'latitude', 'longitude', 'address')
+        fields = ('id', 'identifier', 'name', 'pop_type', 'latitude', 'longitude', 'address')
 
 
 class ClientCreateSerializer(serializers.ModelSerializer):
@@ -196,7 +196,7 @@ class CableCreateSerializer(serializers.ModelSerializer):
             'POP': POP,
             'CLIENT': Client,
             'JUNCTION': Junction,
-            'GPON': Gpon
+            'TJ_BOX': Gpon
         }
 
         start_form = data['start_from']

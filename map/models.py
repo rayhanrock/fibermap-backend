@@ -8,7 +8,7 @@ class MarkerType(models.TextChoices):
     POP = 'POP', _('POP')
     CLIENT = 'CLIENT', _('Client')
     JUNCTION = 'JUNCTION', _('Junction')
-    GPON = 'GPON', _('Gpon')
+    TJ_BOX = 'TJ_BOX', _('Tj Box')
 
 
 class Marker(models.Model):
@@ -24,10 +24,16 @@ class Marker(models.Model):
         return self.type
 
 
+class PopType(models.TextChoices):
+    OLT = 'OLT', _('Olt')
+    SWITCH = 'Switch', _('Switch')
+
+
 class POP(models.Model):
     identifier = models.CharField(max_length=100, null=True, blank=True)
     name = models.CharField(max_length=100)
     marker = models.OneToOneField(Marker, on_delete=models.CASCADE)
+    pop_type = models.CharField(max_length=100, choices=PopType.choices)
 
     def __str__(self):
         return self.name

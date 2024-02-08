@@ -175,6 +175,7 @@ class GponCoresDetailsAPIView(APIView):
             gpon_output_cable_data.append(serialized_cable)
 
         data = {
+            'type': gpon.name,
             'input_cable': gpon_input_cable_data,
             'out': gpon_out_details,
             'output_cables': gpon_output_cable_data
@@ -369,6 +370,8 @@ class PopPathsView(APIView):
                 data['total_length'] += cable.length
                 path_unit['model_type'] = marker.type
                 path_unit['model_identifier'] = marker.identifier
+                path_unit['cable_line'] = cable.get_polyline()
+
                 path_unit['cable_id'] = cable.id
                 path_unit['cable_identifier'] = cable.identifier
                 path_unit['total_cable_core'] = cable.number_of_cores
