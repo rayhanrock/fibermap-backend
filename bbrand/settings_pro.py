@@ -24,7 +24,7 @@ SECRET_KEY = 'django-insecure-e)0+v*8x@u)b@)l(&8fxo!^2g$py8+b+&h4+1o0vqnf45mwuq(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['rawlife.pythonanywhere.com', '127.0.0.1','https://fibermap-frontend.vercel.app',]
+ALLOWED_HOSTS = ['rawlife.pythonanywhere.com', '127.0.0.1', 'https://fibermap-frontend.vercel.app', ]
 CORS_ORIGIN_WHITELIST = [
     'http://127.0.0.1:3000',
     'https://fibermap-frontend.vercel.app',
@@ -81,19 +81,15 @@ WSGI_APPLICATION = 'bbrand.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'rawlife$map',
+        'USER': 'rawlife',
+        'PASSWORD': 'seizetheday',
+        'HOST': 'rawlife.mysql.pythonanywhere-services.com',
+        'PORT': '3306',
     }
 }
 
-# DATABASES = {
-#     'ENGINE': 'django.db.backends.mysql',
-#     'NAME': 'rayhanbillah$quiz',
-#     'USER': 'rayhanbillah',
-#     'PASSWORD': 'seizetheday',
-#     'HOST': 'rayhanbillah.mysql.pythonanywhere-services.com',
-#     'PORT': '3306',
-# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
