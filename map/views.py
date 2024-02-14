@@ -8,9 +8,25 @@ from .serializers import (POPCreateSerializer, ClientCreateSerializer, GponCreat
                           POPListSerializer, ClientListSerializer, GponListSerializer,
                           JunctionListSerializer, CableCreateSerializer, CableListSerializer, CableSerializer,
                           ClientCoreSerializer, CoreAssignSerializer, JunctionCoreSerializer, ConnectCoresSerializer,
-                          PopCoreSerializer, GponOutCoreSerializer, GponCableCoreSerializer)
+                          PopCoreSerializer, GponOutCoreSerializer, GponCableCoreSerializer, POPUpdateSerializer,
+                          ClientUpdateSerializer, GponUpdateSerializer)
 
 from .utility import find_core_paths
+
+
+class DashboardView(APIView):
+
+    def get(self, request):
+        total_clients = Client.objects.count()
+        total_gpons = Gpon.objects.count()
+        total_pop = POP.objects.count()
+        total_cables = Cable.objects.count()
+        return Response(data={
+            'total_clients': total_clients,
+            'total_gpons': total_gpons,
+            'total_pop': total_pop,
+            'total_cables': total_cables
+        }, status=status.HTTP_200_OK)
 
 
 class PopCreateView(generics.CreateAPIView):
@@ -22,6 +38,23 @@ class PopListView(generics.ListAPIView):
     serializer_class = POPListSerializer
 
 
+class PopUpdateView(generics.RetrieveUpdateAPIView):
+    lookup_field = 'id'
+    queryset = POP.objects.all()
+    serializer_class = POPUpdateSerializer
+
+
+class PopDeleteView(APIView):
+
+    def delete(self, request, pk):
+        try:
+            pop = POP.objects.get(pk=pk)
+            pop.marker.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except POP.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+
 class ClientCreateView(generics.CreateAPIView):
     serializer_class = ClientCreateSerializer
 
@@ -29,6 +62,23 @@ class ClientCreateView(generics.CreateAPIView):
 class ClientListView(generics.ListAPIView):
     queryset = Client.objects.all()
     serializer_class = ClientListSerializer
+
+
+class ClientUpdateView(generics.RetrieveUpdateAPIView):
+    lookup_field = 'id'
+    queryset = Client.objects.all()
+    serializer_class = ClientUpdateSerializer
+
+
+class ClientDeleteView(APIView):
+
+    def delete(self, request, pk):
+        try:
+            client = Client.objects.get(pk=pk)
+            client.marker.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Client.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 class JunctionCreateView(generics.CreateAPIView):
@@ -47,6 +97,23 @@ class GponCreateView(generics.CreateAPIView):
 class GponListView(generics.ListAPIView):
     queryset = Gpon.objects.all()
     serializer_class = GponListSerializer
+
+
+class GponUpdateView(generics.RetrieveUpdateAPIView):
+    lookup_field = 'id'
+    queryset = Gpon.objects.all()
+    serializer_class = GponUpdateSerializer
+
+
+class GponDeleteView(APIView):
+
+    def delete(self, request, pk):
+        try:
+            gpon = Gpon.objects.get(pk=pk)
+            gpon.marker.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Gpon.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 class CableCreateView(generics.CreateAPIView):

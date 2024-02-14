@@ -3,17 +3,22 @@ from map import views
 from map import oldview
 
 urlpatterns = [
+    path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
     path('pop/', views.PopListView.as_view(), name='pop-list'),
     path('pop/create/', views.PopCreateView.as_view(), name='pop-create'),
     path('pop-details/<int:pop_id>/cores/', views.PopCoresDetailsAPIView.as_view(),
          name='pop-core-details'),
     path('pop/<int:pop_id>/paths/', views.PopPathsView.as_view(), name='pop-path'),
+    path('pop/<int:id>/update/', views.PopUpdateView.as_view(), name='pop-update'),
+    path('pop/<int:pk>/delete/', views.PopDeleteView.as_view(), name='pop-delete'),
 
     path('client/', views.ClientListView.as_view(), name='client-create'),
     path('client/create/', views.ClientCreateView.as_view(), name='client-list'),
     path('client-details/<int:client_id>/cores/', views.ClientCoresDetailsAPIView.as_view(),
          name='client-core-details'),
     path('client/<int:client_id>/paths/', views.ClientPathsView.as_view(), name='client-path'),
+    path('client/<int:id>/update/', views.ClientUpdateView.as_view(), name='client-update'),
+    path('client/<int:pk>/delete/', views.ClientDeleteView.as_view(), name='client-delete'),
 
     path('junction/', views.JunctionListView.as_view(), name='junction-create'),
     path('junction/create/', views.JunctionCreateView.as_view(), name='junction-list'),
@@ -29,6 +34,8 @@ urlpatterns = [
          name='gpon-remove-input-cable'),
     path('gpon/<int:gpon_id>/assign-core/', views.GponInputCoreAssignView.as_view(), name='gpon-input-assign-core'),
     path('gpon/<int:gpon_id>/withdraw-core/', views.GponInputCoreWithdrawView.as_view(), name='gpon-input-withdraw-core'),
+    path('gpon/<int:id>/update/', views.GponUpdateView.as_view(), name='gpon-update'),
+    path('gpon/<int:pk>/delete/', views.GponDeleteView.as_view(), name='gpon-delete'),
 
     path('cable/', views.CableListView.as_view(), name='cable-list'),
     path('cable/create/', views.CableCreateView.as_view(), name='cable-create'),

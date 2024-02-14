@@ -179,7 +179,7 @@ class GponListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Gpon
-        fields = ('id', 'identifier', 'name', 'latitude', 'longitude', 'address')
+        fields = ('id', 'identifier', 'name', 'splitter', 'latitude', 'longitude', 'address')
 
 
 class CableCreateSerializer(serializers.ModelSerializer):
@@ -452,3 +452,65 @@ class ConnectCoresSerializer(serializers.ModelSerializer):
         core_to = validated_data['core_to']
         Connection.objects.create(core_from=core_to, core_to=core_from)
         return Connection.objects.create(core_from=core_from, core_to=core_to)
+
+
+class MarkerUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Marker
+        fields = ['address', 'description', 'notes', ]
+
+
+class POPUpdateSerializer(serializers.ModelSerializer):
+    marker = MarkerUpdateSerializer()
+
+    class Meta:
+        model = POP
+        fields = ['name', 'pop_type', 'marker']
+
+    def update(self, instance, validated_data):
+        marker_data = validated_data.pop('marker')
+        instance.marker.address = marker_data['address']
+        instance.marker.description = marker_data['description']
+        instance.marker.notes = marker_data['notes']
+        instance.marker.save()
+        instance.name = validated_data['name']
+        instance.pop_type = validated_data['pop_type']
+        instance.save()
+        return instance
+
+
+class ClientUpdateSerializer(serializers.ModelSerializer):
+    marker = MarkerUpdateSerializer()
+
+    class Meta:
+        model = Client
+        fields = ['name', 'mobile_number', 'marker']
+
+    def update(self, instance, validated_data):
+        marker_data = validated_data.pop('marker')
+        instance.marker.address = marker_data['address']
+        instance.marker.description = marker_data['description']
+        instance.marker.notes = marker_data['notes']
+        instance.marker.save()
+        instance.name = validated_data['name']
+        instance.mobile_number = validated_data['mobile_number']
+        instance.save()
+        return instance
+
+
+class GponUpdateSerializer(serializers.ModelSerializer):
+    marker = MarkerUpdateSerializer()
+
+    class Meta:
+        model = Client
+        fields = ['name', 'marker']
+
+    def update(self, instance, validated_data):
+        marker_data = validated_data.pop('marker')
+        instance.marker.address = marker_data['address']
+        instance.marker.description = marker_data['description']
+        instance.marker.notes = marker_data['notes']
+        instance.marker.save()
+        instance.name = validated_data['name']
+        instance.save()
+        return instance
