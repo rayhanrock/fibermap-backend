@@ -1,8 +1,10 @@
 from django.contrib import admin
-from .models import Cable, Marker, Core, POP, Junction, Client, Gpon, Connection
+from .models import Cable, Marker, Core, POP, Junction, Client, Gpon, Connection, UserProfile
+
+
+admin.site.register(UserProfile)
 
 admin.site.register(Marker)
-
 admin.site.register(POP)
 admin.site.register(Client)
 admin.site.register(Junction)

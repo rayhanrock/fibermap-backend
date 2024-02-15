@@ -1,8 +1,17 @@
-from django.urls import path
+from django.urls import path, include
 from map import views
 from map import oldview
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register('users', views.UserViewSets)
 
 urlpatterns = [
+    path('', include(router.urls)),
+    path('login/', views.UserLoginApiView.as_view(), name='login'),
+    path('logout/', views.LogoutView.as_view(), name='logout'),
+    path('verify-token/', views.VerifyTokenView.as_view(), name='verify-token'),
+
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
     path('pop/', views.PopListView.as_view(), name='pop-list'),
     path('pop/create/', views.PopCreateView.as_view(), name='pop-create'),

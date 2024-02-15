@@ -1,20 +1,83 @@
 from django.db.models import Q
-from rest_framework import generics, status
+from rest_framework import generics, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import POP, Client, Junction, Gpon, Cable, Core, Connection
+from . import permissions
+from .models import POP, Client, Junction, Gpon, Cable, Core, Connection, UserProfile
 from .serializers import (POPCreateSerializer, ClientCreateSerializer, GponCreateSerializer, JunctionCreateSerializer,
                           POPListSerializer, ClientListSerializer, GponListSerializer,
                           JunctionListSerializer, CableCreateSerializer, CableListSerializer, CableSerializer,
                           ClientCoreSerializer, CoreAssignSerializer, JunctionCoreSerializer, ConnectCoresSerializer,
                           PopCoreSerializer, GponOutCoreSerializer, GponCableCoreSerializer, POPUpdateSerializer,
-                          ClientUpdateSerializer, GponUpdateSerializer)
+                          ClientUpdateSerializer, GponUpdateSerializer, UserSerializer)
 
 from .utility import find_core_paths
 
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.settings import api_settings
+from rest_framework.authtoken.models import Token
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import IsAuthenticated
+
+from django.utils import timezone
+
+
+class UserViewSets(viewsets.ModelViewSet):
+    queryset = UserProfile.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = (permissions.UpdateOwnProfile,)
+    authentication_classes = (TokenAuthentication,)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        message = f"User with name {instance.username} has been deleted."
+        return Response({'message': message}, status=status.HTTP_204_NO_CONTENT)
+
+
+class UserLoginApiView(ObtainAuthToken):
+    renderer_classes = api_settings.DEFAULT_RENDERER_CLASSES
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+
+        if response.status_code == 200:
+            user = Token.objects.get(key=response.data['token']).user
+            user.last_login = timezone.now()
+            user.save()
+
+        return response
+
+
+class LogoutView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        token = Token.objects.get(user=user)
+        token.delete()
+
+        return Response({'detail': 'Logged out successfully.'})
+
+
+class VerifyTokenView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        data = {
+            'id': user.id,
+            'is_staff': user.is_staff,
+        }
+        return Response({'user': data}, status=status.HTTP_200_OK)
+
 
 class DashboardView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         total_clients = Client.objects.count()
@@ -31,20 +94,28 @@ class DashboardView(APIView):
 
 class PopCreateView(generics.CreateAPIView):
     serializer_class = POPCreateSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class PopListView(generics.ListAPIView):
     queryset = POP.objects.all()
     serializer_class = POPListSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class PopUpdateView(generics.RetrieveUpdateAPIView):
     lookup_field = 'id'
     queryset = POP.objects.all()
     serializer_class = POPUpdateSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class PopDeleteView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
         try:
@@ -57,20 +128,28 @@ class PopDeleteView(APIView):
 
 class ClientCreateView(generics.CreateAPIView):
     serializer_class = ClientCreateSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class ClientListView(generics.ListAPIView):
     queryset = Client.objects.all()
     serializer_class = ClientListSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class ClientUpdateView(generics.RetrieveUpdateAPIView):
     lookup_field = 'id'
     queryset = Client.objects.all()
     serializer_class = ClientUpdateSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class ClientDeleteView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
         try:
@@ -83,29 +162,41 @@ class ClientDeleteView(APIView):
 
 class JunctionCreateView(generics.CreateAPIView):
     serializer_class = JunctionCreateSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class JunctionListView(generics.ListAPIView):
     queryset = Junction.objects.all()
     serializer_class = JunctionListSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class GponCreateView(generics.CreateAPIView):
     serializer_class = GponCreateSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class GponListView(generics.ListAPIView):
     queryset = Gpon.objects.all()
     serializer_class = GponListSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class GponUpdateView(generics.RetrieveUpdateAPIView):
     lookup_field = 'id'
     queryset = Gpon.objects.all()
     serializer_class = GponUpdateSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class GponDeleteView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
         try:
@@ -118,19 +209,28 @@ class GponDeleteView(APIView):
 
 class CableCreateView(generics.CreateAPIView):
     serializer_class = CableCreateSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class CableListView(generics.ListAPIView):
     queryset = Cable.objects.all()
     serializer_class = CableListSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class CoreAssignView(generics.UpdateAPIView):
     queryset = Core.objects.all()
     serializer_class = CoreAssignSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class ClientPathsView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, client_id):
         try:
             client = Client.objects.get(id=client_id)
@@ -169,6 +269,9 @@ class ClientPathsView(APIView):
 
 
 class ClientCoresDetailsAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, client_id):
         try:
             client = Client.objects.get(id=client_id)
@@ -188,6 +291,9 @@ class ClientCoresDetailsAPIView(APIView):
 
 
 class JunctionCoresDetailsAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, junction_id):
         try:
             junction = Junction.objects.get(id=junction_id)
@@ -207,6 +313,8 @@ class JunctionCoresDetailsAPIView(APIView):
 
 
 class GponCoresDetailsAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, gpon_id):
         try:
@@ -251,6 +359,9 @@ class GponCoresDetailsAPIView(APIView):
 
 
 class AddGponInputCable(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, gpon_id):
         data = request.data
         try:
@@ -291,6 +402,9 @@ class AddGponInputCable(APIView):
 
 
 class RemoveGponInputCable(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, gpon_id):
         try:
             gpon = Gpon.objects.get(id=gpon_id)
@@ -320,6 +434,8 @@ class RemoveGponInputCable(APIView):
 
 
 class GponInputCoreAssignView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, gpon_id):
         data = request.data
@@ -364,6 +480,9 @@ class GponInputCoreAssignView(APIView):
 
 
 class GponInputCoreWithdrawView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, gpon_id):
         try:
             gpon = Gpon.objects.get(id=gpon_id)
@@ -395,6 +514,9 @@ class GponInputCoreWithdrawView(APIView):
 
 
 class PopCoresDetailsAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, pop_id):
         try:
             pop = POP.objects.get(id=pop_id)
@@ -414,6 +536,9 @@ class PopCoresDetailsAPIView(APIView):
 
 
 class PopPathsView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, pop_id):
         try:
             pop = POP.objects.get(id=pop_id)
@@ -454,9 +579,14 @@ class PopPathsView(APIView):
 
 class ConnectCoresAPIView(generics.CreateAPIView):
     serializer_class = ConnectCoresSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
 class DisConnectCoresAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, format=None):
         data = request.data
 

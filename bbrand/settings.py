@@ -42,7 +42,11 @@ INSTALLED_APPS = [
     "map.apps.MapConfig",
     "rest_framework",
     'corsheaders',
+    'rest_framework.authtoken',
+
 ]
+
+AUTH_USER_MODEL = 'map.UserProfile'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -112,6 +116,14 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+# Settings for REST_FRAMEWORK
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/

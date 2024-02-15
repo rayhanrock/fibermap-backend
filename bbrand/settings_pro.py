@@ -42,7 +42,10 @@ INSTALLED_APPS = [
     "map.apps.MapConfig",
     "rest_framework",
     'corsheaders',
+    'rest_framework.authtoken',
+
 ]
+AUTH_USER_MODEL = 'account.UserProfile'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -89,7 +92,13 @@ DATABASES = {
         'PORT': '3306',
     }
 }
+# Settings for REST_FRAMEWORK
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
