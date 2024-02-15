@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
 
 ]
-AUTH_USER_MODEL = 'account.UserProfile'
+AUTH_USER_MODEL = 'map.UserProfile'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
