@@ -50,6 +50,8 @@ urlpatterns = [
     path('cable/create/', views.CableCreateView.as_view(), name='cable-create'),
 
     path('core/<int:pk>/update-assign-status/', views.CoreAssignView.as_view(), name='core-assign-withdraw'),
+    path('cable/<int:id>/update/', views.CableUpdateView.as_view(), name='cable-update'),
+    path('cable/<int:pk>/delete/', views.CableDeleteView.as_view(), name='cable-delete'),
 
     path('connect-cores/', views.ConnectCoresAPIView.as_view(), name='connect-cores'),
     path('disconnect-cores/', views.DisConnectCoresAPIView.as_view(), name='disconnect-cores'),

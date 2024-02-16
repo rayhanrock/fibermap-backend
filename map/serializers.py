@@ -556,3 +556,21 @@ class GponUpdateSerializer(serializers.ModelSerializer):
         instance.name = validated_data['name']
         instance.save()
         return instance
+
+
+class CableUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Cable
+        fields = ['id', 'identifier', 'type', 'start_from', 'starting_point', 'end_to', 'ending_point',
+                  'number_of_cores', 'length', 'notes', 'description']
+        read_only_fields = ['start_from', 'starting_point', 'end_to', 'ending_point', 'number_of_cores']
+
+    def update(self, instance, validated_data):
+        instance.type = validated_data.get('type', instance.type)
+        instance.identifier = validated_data.get('identifier', instance.identifier)
+        instance.length = validated_data.get('length', instance.length)
+        instance.notes = validated_data.get('notes', instance.notes)
+        instance.description = validated_data.get('description', instance.description)
+        instance.save()
+
+        return instance

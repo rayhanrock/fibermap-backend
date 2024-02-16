@@ -10,7 +10,7 @@ from .serializers import (POPCreateSerializer, ClientCreateSerializer, GponCreat
                           JunctionListSerializer, CableCreateSerializer, CableListSerializer, CableSerializer,
                           ClientCoreSerializer, CoreAssignSerializer, JunctionCoreSerializer, ConnectCoresSerializer,
                           PopCoreSerializer, GponOutCoreSerializer, GponCableCoreSerializer, POPUpdateSerializer,
-                          ClientUpdateSerializer, GponUpdateSerializer, UserSerializer)
+                          ClientUpdateSerializer, GponUpdateSerializer, CableUpdateSerializer, UserSerializer)
 
 from .utility import find_core_paths
 
@@ -218,6 +218,27 @@ class CableListView(generics.ListAPIView):
     serializer_class = CableListSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+
+
+class CableUpdateView(generics.RetrieveUpdateAPIView):
+    lookup_field = 'id'
+    queryset = Cable.objects.all()
+    serializer_class = CableUpdateSerializer
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+
+class CableDeleteView(APIView):
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            cable = Cable.objects.get(pk=pk)
+            cable.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Cable.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 class CoreAssignView(generics.UpdateAPIView):
