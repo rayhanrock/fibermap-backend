@@ -30,8 +30,8 @@ class UserProfile(AbstractUser):
 class MarkerType(models.TextChoices):
     POP = 'POP', _('POP')
     CLIENT = 'CLIENT', _('Client')
-    JUNCTION = 'JUNCTION', _('Junction')
-    TJ_BOX = 'TJ_BOX', _('Tj Box')
+    TJ_BOX = 'TJ_BOX', _('TJ BOX')
+    RESELLER = 'RESELLER', _('Reseller')
 
 
 class Marker(models.Model):
@@ -62,7 +62,7 @@ class POP(models.Model):
         return self.name
 
 
-class Junction(models.Model):
+class TJBox(models.Model):
     identifier = models.CharField(max_length=100, null=True, blank=True)
     name = models.CharField(max_length=100)
     marker = models.OneToOneField(Marker, on_delete=models.CASCADE)
@@ -72,6 +72,16 @@ class Junction(models.Model):
 
 
 class Client(models.Model):
+    identifier = models.CharField(max_length=100, null=True, blank=True)
+    name = models.CharField(max_length=100)
+    marker = models.OneToOneField(Marker, on_delete=models.CASCADE)
+    mobile_number = models.CharField(max_length=100, null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Reseller(models.Model):
     identifier = models.CharField(max_length=100, null=True, blank=True)
     name = models.CharField(max_length=100)
     marker = models.OneToOneField(Marker, on_delete=models.CASCADE)
@@ -110,15 +120,17 @@ class Core(models.Model):
     core_number = models.IntegerField()
     color = models.CharField(max_length=100)
     assigned = models.BooleanField()
+    splitter = models.ForeignKey("Gpon", on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return f"{self.marker.type} {self.cable} - {self.core_number}"
 
 
 class Gpon(models.Model):
+    tj_box = models.ForeignKey(TJBox, on_delete=models.CASCADE, null=True, blank=True)
     identifier = models.CharField(max_length=100, null=True, blank=True)
     name = models.CharField(max_length=100)
-    marker = models.OneToOneField(Marker, on_delete=models.CASCADE)
+    marker = models.ForeignKey(Marker, on_delete=models.CASCADE)
     input_cable = models.ForeignKey(Cable, on_delete=models.CASCADE, null=True, blank=True)
     input_core = models.ForeignKey(Core, on_delete=models.CASCADE, related_name='input_core', null=True, blank=True)
     splitter = models.IntegerField()

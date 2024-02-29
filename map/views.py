@@ -1,16 +1,20 @@
+import json
 from django.db.models import Q
 from rest_framework import generics, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import permissions
-from .models import POP, Client, Junction, Gpon, Cable, Core, Connection, UserProfile
-from .serializers import (POPCreateSerializer, ClientCreateSerializer, GponCreateSerializer, JunctionCreateSerializer,
+from .models import POP, Client, TJBox, Gpon, Cable, Core, Connection, UserProfile, Marker, Reseller
+from .serializers import (POPCreateSerializer, ClientCreateSerializer, GponCreateSerializer, TJBoxCreateSerializer,
                           POPListSerializer, ClientListSerializer, GponListSerializer,
-                          JunctionListSerializer, CableCreateSerializer, CableListSerializer, CableSerializer,
-                          ClientCoreSerializer, CoreAssignSerializer, JunctionCoreSerializer, ConnectCoresSerializer,
+                          TJBoxListSerializer, TJBoxUpdateSerializer, CableCreateSerializer, CableListSerializer,
+                          CableSerializer,
+                          ClientCoreSerializer, CoreAssignSerializer, TJBoxCoreSerializer, ConnectCoresSerializer,
                           PopCoreSerializer, GponOutCoreSerializer, GponCableCoreSerializer, POPUpdateSerializer,
-                          ClientUpdateSerializer, GponUpdateSerializer, CableUpdateSerializer, UserSerializer)
+                          ClientUpdateSerializer, GponUpdateSerializer, CableUpdateSerializer, UserSerializer,
+                          ResellerCoreSerializer, ResellerUpdateSerializer, ResellerListSerializer,
+                          ResellerCreateSerializer)
 
 from .utility import find_core_paths
 
@@ -26,8 +30,9 @@ from django.utils import timezone
 class UserViewSets(viewsets.ModelViewSet):
     queryset = UserProfile.objects.all()
     serializer_class = UserSerializer
-    permission_classes = (permissions.UpdateOwnProfile,)
-    authentication_classes = (TokenAuthentication,)
+
+    # permission_classes = (permissions.UpdateOwnProfile,)
+    # authentication_classes = (TokenAuthentication,)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -51,8 +56,8 @@ class UserLoginApiView(ObtainAuthToken):
 
 
 class LogoutView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
@@ -63,8 +68,8 @@ class LogoutView(APIView):
 
 
 class VerifyTokenView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
@@ -76,8 +81,8 @@ class VerifyTokenView(APIView):
 
 
 class DashboardView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request):
         total_clients = Client.objects.count()
@@ -94,28 +99,28 @@ class DashboardView(APIView):
 
 class PopCreateView(generics.CreateAPIView):
     serializer_class = POPCreateSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class PopListView(generics.ListAPIView):
     queryset = POP.objects.all()
     serializer_class = POPListSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class PopUpdateView(generics.RetrieveUpdateAPIView):
     lookup_field = 'id'
     queryset = POP.objects.all()
     serializer_class = POPUpdateSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class PopDeleteView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
         try:
@@ -126,30 +131,127 @@ class PopDeleteView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
 
+class ResellerCreateView(generics.CreateAPIView):
+    serializer_class = ResellerCreateSerializer
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+
+class ResellerListView(generics.ListAPIView):
+    queryset = Reseller.objects.all()
+    serializer_class = ResellerListSerializer
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+
+class ResellerUpdateView(generics.RetrieveUpdateAPIView):
+    lookup_field = 'id'
+    queryset = Reseller.objects.all()
+    serializer_class = ResellerUpdateSerializer
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+
+class ResellerDeleteView(APIView):
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            reseller = Reseller.objects.get(pk=pk)
+            reseller.marker.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Reseller.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+
+class ResellerPathsView(APIView):
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+    def get(self, request, reseller_id):
+        try:
+            reseller = Reseller.objects.get(id=reseller_id)
+        except Reseller.DoesNotExist:
+            return Response({'error': 'Reseller not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        cores = Core.objects.filter(marker=reseller.marker, assigned=True)
+        serialized_data = []
+        for core in cores:
+            path = find_core_paths(core)
+            data = {
+                'total_length': 0,
+                'path_direction': [],
+            }
+            path_direction = data['path_direction']
+            print("path", path)
+            for c in path:
+                path_unit = {}
+                marker = c.marker
+                cable = c.cable
+                data['total_length'] += cable.length
+                path_unit['model_type'] = marker.type
+                path_unit['model_identifier'] = marker.identifier
+                path_unit['cable_id'] = cable.id
+                path_unit['cable_line'] = cable.get_polyline()
+                path_unit['cable_identifier'] = cable.identifier
+                path_unit['total_cable_core'] = cable.number_of_cores
+                path_unit['cable_length'] = cable.length
+                path_unit['color'] = c.color
+                path_direction.append(path_unit)
+            data['total_length'] -= path_direction[-1]['cable_length']
+            path_direction[-1]['cable_length'] = 0
+            path_direction[-1]['cable_identifier'] = '/'
+            serialized_data.append(data)
+        return Response(serialized_data)
+
+
+class ResellerCoresDetailsAPIView(APIView):
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+    def get(self, request, reseller_id):
+        try:
+            reseller = Reseller.objects.get(id=reseller_id)
+        except Reseller.DoesNotExist:
+            return Response({'error': 'Reseller not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        cores = Core.objects.filter(marker=reseller.marker)
+        cables = set(core.cable for core in cores)
+
+        serialized_data = []
+        for cable in cables:
+            serialized_cable = CableSerializer(cable).data
+            serialized_cable['cores'] = ResellerCoreSerializer(cores.filter(cable=cable), many=True).data
+            serialized_data.append(serialized_cable)
+
+        return Response(serialized_data)
+
+
 class ClientCreateView(generics.CreateAPIView):
     serializer_class = ClientCreateSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class ClientListView(generics.ListAPIView):
     queryset = Client.objects.all()
     serializer_class = ClientListSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class ClientUpdateView(generics.RetrieveUpdateAPIView):
     lookup_field = 'id'
     queryset = Client.objects.all()
     serializer_class = ClientUpdateSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class ClientDeleteView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
         try:
@@ -160,43 +262,127 @@ class ClientDeleteView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
 
-class JunctionCreateView(generics.CreateAPIView):
-    serializer_class = JunctionCreateSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+class ClientPathsView(APIView):
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+    def get(self, request, client_id):
+        try:
+            client = Client.objects.get(id=client_id)
+        except Client.DoesNotExist:
+            return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        cores = Core.objects.filter(marker=client.marker, assigned=True)
+        serialized_data = []
+        for core in cores:
+            path = find_core_paths(core)
+            data = {
+                'total_length': 0,
+                'path_direction': [],
+            }
+            path_direction = data['path_direction']
+            print("path", path)
+            for c in path:
+                path_unit = {}
+                marker = c.marker
+                cable = c.cable
+                data['total_length'] += cable.length
+                path_unit['model_type'] = marker.type
+                path_unit['model_identifier'] = marker.identifier
+                path_unit['cable_id'] = cable.id
+                path_unit['cable_line'] = cable.get_polyline()
+                path_unit['cable_identifier'] = cable.identifier
+                path_unit['total_cable_core'] = cable.number_of_cores
+                path_unit['cable_length'] = cable.length
+                path_unit['color'] = c.color
+                path_direction.append(path_unit)
+            data['total_length'] -= path_direction[-1]['cable_length']
+            path_direction[-1]['cable_length'] = 0
+            path_direction[-1]['cable_identifier'] = '/'
+            serialized_data.append(data)
+        return Response(serialized_data)
 
 
-class JunctionListView(generics.ListAPIView):
-    queryset = Junction.objects.all()
-    serializer_class = JunctionListSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+class ClientCoresDetailsAPIView(APIView):
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+    def get(self, request, client_id):
+        try:
+            client = Client.objects.get(id=client_id)
+        except Client.DoesNotExist:
+            return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        cores = Core.objects.filter(marker=client.marker)
+        cables = set(core.cable for core in cores)
+
+        serialized_data = []
+        for cable in cables:
+            serialized_cable = CableSerializer(cable).data
+            serialized_cable['cores'] = ClientCoreSerializer(cores.filter(cable=cable), many=True).data
+            serialized_data.append(serialized_cable)
+
+        return Response(serialized_data)
+
+
+class TJBoxCreateView(generics.CreateAPIView):
+    serializer_class = TJBoxCreateSerializer
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+
+class TJBoxListView(generics.ListAPIView):
+    queryset = TJBox.objects.all()
+    serializer_class = TJBoxListSerializer
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+
+class TJBoxUpdateView(generics.RetrieveUpdateAPIView):
+    lookup_field = 'id'
+    queryset = TJBox.objects.all()
+    serializer_class = TJBoxUpdateSerializer
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+
+class TJBoxDeleteView(APIView):
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            tj_box = TJBox.objects.get(pk=pk)
+            tj_box.marker.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except TJBox.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 class GponCreateView(generics.CreateAPIView):
     serializer_class = GponCreateSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class GponListView(generics.ListAPIView):
     queryset = Gpon.objects.all()
     serializer_class = GponListSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class GponUpdateView(generics.RetrieveUpdateAPIView):
     lookup_field = 'id'
     queryset = Gpon.objects.all()
     serializer_class = GponUpdateSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class GponDeleteView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def delete(self, request, pk):
         try:
@@ -209,15 +395,15 @@ class GponDeleteView(APIView):
 
 class CableCreateView(generics.CreateAPIView):
     serializer_class = CableCreateSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class CableListView(generics.ListAPIView):
     queryset = Cable.objects.all()
     serializer_class = CableListSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class CableUpdateView(generics.RetrieveUpdateAPIView):
@@ -244,98 +430,54 @@ class CableDeleteView(APIView):
 class CoreAssignView(generics.UpdateAPIView):
     queryset = Core.objects.all()
     serializer_class = CoreAssignSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
-class ClientPathsView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+class TJBoxCoresDetailsAPIView(APIView):
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
-    def get(self, request, client_id):
+    def get(self, request, tj_box_id):
         try:
-            client = Client.objects.get(id=client_id)
-        except Client.DoesNotExist:
-            return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
+            tj_box = TJBox.objects.get(id=tj_box_id)
+        except TJBox.DoesNotExist:
+            return Response({'error': 'TJ Box not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        cores = Core.objects.filter(marker=client.marker, assigned=True)
+        cores = Core.objects.filter(marker=tj_box.marker).exclude(cable=None)
+        cables = set(core.cable for core in cores)
+
         serialized_data = []
-        for core in cores:
-            path = find_core_paths(core)
-            data = {
-                'total_length': 0,
-                'path_direction': [],
+        for cable in cables:
+            serialized_cable = CableSerializer(cable).data
+            serialized_cable['cores'] = TJBoxCoreSerializer(cores.filter(cable=cable), many=True).data
+            serialized_data.append(serialized_cable)
+
+        splitters = []
+        for gpon in Gpon.objects.filter(tj_box=tj_box):
+            gpon_out_details = {
+                'number_of_splitter': gpon.splitter,
+                'input_core_id': gpon.input_core.id,
+                'splitter_type': gpon.name,
+                'output_cores': []
             }
-            path_direction = data['path_direction']
 
-            for c in path:
-                path_unit = {}
-                marker = c.marker
-                cable = c.cable
-                data['total_length'] += cable.length
-                path_unit['model_type'] = marker.type
-                path_unit['model_identifier'] = marker.identifier
-                path_unit['cable_id'] = cable.id
-                path_unit['cable_line'] = cable.get_polyline()
-                path_unit['cable_identifier'] = cable.identifier
-                path_unit['total_cable_core'] = cable.number_of_cores
-                path_unit['cable_length'] = cable.length
-                path_unit['color'] = c.color
-                path_direction.append(path_unit)
-            data['total_length'] -= path_direction[-1]['cable_length']
-            path_direction[-1]['cable_length'] = 0
-            path_direction[-1]['cable_identifier'] = '/'
-            serialized_data.append(data)
-        return Response(serialized_data)
+            cores = Core.objects.filter(marker=gpon.marker, splitter=gpon)
+            gpon_out_cores = cores.filter(cable=None).order_by('core_number')
+            for core in gpon_out_cores:
+                gpon_out_details['output_cores'].append(GponOutCoreSerializer(core).data)
+            splitters.append(gpon_out_details)
 
-
-class ClientCoresDetailsAPIView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, client_id):
-        try:
-            client = Client.objects.get(id=client_id)
-        except Client.DoesNotExist:
-            return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        cores = Core.objects.filter(marker=client.marker)
-        cables = set(core.cable for core in cores)
-
-        serialized_data = []
-        for cable in cables:
-            serialized_cable = CableSerializer(cable).data
-            serialized_cable['cores'] = ClientCoreSerializer(cores.filter(cable=cable), many=True).data
-            serialized_data.append(serialized_cable)
-
-        return Response(serialized_data)
-
-
-class JunctionCoresDetailsAPIView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, junction_id):
-        try:
-            junction = Junction.objects.get(id=junction_id)
-        except Junction.DoesNotExist:
-            return Response({'error': 'Junction not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        cores = Core.objects.filter(marker=junction.marker)
-        cables = set(core.cable for core in cores)
-
-        serialized_data = []
-        for cable in cables:
-            serialized_cable = CableSerializer(cable).data
-            serialized_cable['cores'] = JunctionCoreSerializer(cores.filter(cable=cable), many=True).data
-            serialized_data.append(serialized_cable)
-
-        return Response(serialized_data)
+        data = {
+            'splitters': splitters,
+            'cables': serialized_data
+        }
+        return Response(data)
 
 
 class GponCoresDetailsAPIView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request, gpon_id):
         try:
@@ -380,8 +522,8 @@ class GponCoresDetailsAPIView(APIView):
 
 
 class AddGponInputCable(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request, gpon_id):
         data = request.data
@@ -423,8 +565,8 @@ class AddGponInputCable(APIView):
 
 
 class RemoveGponInputCable(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request, gpon_id):
         try:
@@ -455,8 +597,8 @@ class RemoveGponInputCable(APIView):
 
 
 class GponInputCoreAssignView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request, gpon_id):
         data = request.data
@@ -501,8 +643,8 @@ class GponInputCoreAssignView(APIView):
 
 
 class GponInputCoreWithdrawView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request, gpon_id):
         try:
@@ -535,8 +677,8 @@ class GponInputCoreWithdrawView(APIView):
 
 
 class PopCoresDetailsAPIView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request, pop_id):
         try:
@@ -557,8 +699,8 @@ class PopCoresDetailsAPIView(APIView):
 
 
 class PopPathsView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request, pop_id):
         try:
@@ -600,13 +742,13 @@ class PopPathsView(APIView):
 
 class ConnectCoresAPIView(generics.CreateAPIView):
     serializer_class = ConnectCoresSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
 
 class DisConnectCoresAPIView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
 
     def post(self, request, format=None):
         data = request.data
@@ -630,3 +772,111 @@ class DisConnectCoresAPIView(APIView):
             right.delete()
 
         return Response({"status": "delete success"}, status=status.HTTP_204_NO_CONTENT)
+
+
+class CableCutAPIView(APIView):
+    # authentication_classes = [TokenAuthentication]
+    # permission_classes = [IsAuthenticated]
+
+    def post(self, request, cable_id):
+        data = request.data
+        try:
+            cable = Cable.objects.get(id=cable_id)
+            divider_point = data['divider_point']
+            push_index = data['push_index']
+            tjbox_id = data['tjbox_id']
+            tjbox_name = data['tjbox_name']
+
+        except Cable.DoesNotExist:
+            return Response({'error': 'Cable not found'}, status=status.HTTP_404_NOT_FOUND)
+        except KeyError:
+            return Response({'error': '{divider_point , push_index, tjbox_id, tjbox_name} is required'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        marker = Marker.objects.create(identifier=tjbox_id, type="TJ_BOX", latitude=divider_point[0],
+                                       longitude=divider_point[1])
+        tj_box = TJBox.objects.create(identifier=tjbox_id, name=tjbox_name, marker=marker)
+
+        polyline = cable.get_polyline()
+        first_half = polyline[:push_index + 1] + [{'lat': divider_point[0], 'lng': divider_point[1]}]
+        second_half = [{'lat': divider_point[0], 'lng': divider_point[1]}] + polyline[push_index + 1:]
+
+        left_cable = Cable.objects.create(
+            identifier=cable.identifier,
+            type=cable.type,
+            start_from=cable.start_from,
+            starting_point=cable.starting_point,
+            end_to=marker.type,
+            ending_point=marker,
+            number_of_cores=cable.number_of_cores,
+            length=cable.length,
+            notes=cable.notes,
+            description=cable.description,
+            polyline=json.dumps(first_half),
+
+        )
+        right_cable = Cable.objects.create(
+            identifier=cable.identifier,
+            type=cable.type,
+            start_from=marker.type,
+            starting_point=marker,
+            end_to=cable.end_to,
+            ending_point=cable.ending_point,
+            number_of_cores=cable.number_of_cores,
+            length=cable.length,
+            notes=cable.notes,
+            description=cable.description,
+            polyline=json.dumps(second_half),
+
+        )
+
+        starting_point_cores = Core.objects.filter(cable=cable, marker=cable.starting_point).order_by('core_number')
+        ending_point_cores = Core.objects.filter(cable=cable, marker=cable.ending_point).order_by('core_number')
+
+        print("starting_point_cores", starting_point_cores.count())
+        print("ending_point_cores", ending_point_cores.count())
+        print("ending_point_cores", ending_point_cores)
+
+        for core in starting_point_cores:
+            core.cable = left_cable
+            core.save()
+        for core in ending_point_cores:
+            core.cable = right_cable
+            core.save()
+
+        for i in range(starting_point_cores.count()):
+            conn_left_to_right = Connection.objects.filter(core_from=starting_point_cores[i],
+                                                           core_to=ending_point_cores[i]).first()
+
+            left_cable_core_for_tj = Core.objects.create(
+                marker=marker,
+                cable=left_cable,
+                core_number=conn_left_to_right.core_from.core_number,
+                color=conn_left_to_right.core_from.color,
+                assigned=False
+            )
+
+            conn_left_to_right.core_to = left_cable_core_for_tj
+            conn_left_to_right.save()
+
+            Connection.objects.create(core_from=left_cable_core_for_tj, core_to=conn_left_to_right.core_from)
+
+            conn_right_to_left = Connection.objects.filter(core_from=ending_point_cores[i],
+                                                           core_to=starting_point_cores[i]).first()
+
+            right_cable_core_for_tj = Core.objects.create(
+                marker=marker,
+                cable=right_cable,
+                core_number=conn_right_to_left.core_from.core_number,
+                color=conn_right_to_left.core_from.color,
+                assigned=False
+            )
+
+            conn_right_to_left.core_to = right_cable_core_for_tj
+            conn_right_to_left.save()
+
+            Connection.objects.create(core_from=right_cable_core_for_tj, core_to=conn_right_to_left.core_from)
+
+        cable.delete()
+
+        return Response({"status": "cable cut success"}, status=status.HTTP_200_OK)

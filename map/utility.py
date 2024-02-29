@@ -29,6 +29,7 @@ def find_core_paths(starting_core):
                     if neighbor not in visited:
                         stack.append((neighbor, current_path.copy()))
 
+    print(paths)
     result = []
     for path in paths:
         if path[0].cable == path[1].cable:

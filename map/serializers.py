@@ -5,7 +5,7 @@ from .utility import find_core_paths
 
 from rest_framework import serializers
 
-from .models import Marker, POP, Client, Junction, Gpon, Cable, Core, Connection, UserProfile
+from .models import Marker, POP, Client, TJBox, Gpon, Cable, Core, Connection, UserProfile, Reseller
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -77,6 +77,12 @@ class BasicMarkerSerializer(serializers.ModelSerializer):
         fields = ('identifier', 'type',)
 
 
+class MarkerUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Marker
+        fields = ['address', 'description', 'notes', ]
+
+
 class POPCreateSerializer(serializers.ModelSerializer):
     marker = MarkerSerializer()
 
@@ -109,6 +115,41 @@ class POPListSerializer(serializers.ModelSerializer):
     class Meta:
         model = POP
         fields = ('id', 'identifier', 'name', 'pop_type', 'latitude', 'longitude', 'address')
+
+
+class POPUpdateSerializer(serializers.ModelSerializer):
+    marker = MarkerUpdateSerializer()
+
+    class Meta:
+        model = POP
+        fields = ['name', 'pop_type', 'marker']
+
+    def update(self, instance, validated_data):
+        marker_data = validated_data.pop('marker')
+        instance.marker.address = marker_data['address']
+        instance.marker.description = marker_data['description']
+        instance.marker.notes = marker_data['notes']
+        instance.marker.identifier = validated_data['name']
+        instance.marker.save()
+        instance.name = validated_data['name']
+        instance.pop_type = validated_data['pop_type']
+        instance.save()
+        return instance
+
+
+class PopCoreSerializer(serializers.ModelSerializer):
+    connected_to = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Core
+        fields = ['id', 'core_number', 'color', 'assigned', 'connected_to', ]
+
+    def get_connected_to(self, obj):
+        connection = Connection.objects.filter(core_from=obj)
+        for conn in connection:
+            if conn.core_from.cable != conn.core_to.cable:
+                return {'id': conn.core_to.id}
+        return None
 
 
 class ClientCreateSerializer(serializers.ModelSerializer):
@@ -145,11 +186,99 @@ class ClientListSerializer(serializers.ModelSerializer):
         fields = ('id', 'identifier', 'name', 'latitude', 'longitude', 'address')
 
 
-class JunctionCreateSerializer(serializers.ModelSerializer):
+class ClientCoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Core
+        fields = ['id', 'core_number', 'color', 'assigned', ]
+
+
+class ClientUpdateSerializer(serializers.ModelSerializer):
+    marker = MarkerUpdateSerializer()
+
+    class Meta:
+        model = Client
+        fields = ['name', 'mobile_number', 'marker']
+
+    def update(self, instance, validated_data):
+        marker_data = validated_data.pop('marker')
+        instance.marker.address = marker_data['address']
+        instance.marker.description = marker_data['description']
+        instance.marker.notes = marker_data['notes']
+        instance.marker.identifier = validated_data['name']
+
+        instance.marker.save()
+        instance.name = validated_data['name']
+        instance.mobile_number = validated_data['mobile_number']
+        instance.save()
+        return instance
+
+
+class ResellerCreateSerializer(serializers.ModelSerializer):
     marker = MarkerSerializer()
 
     class Meta:
-        model = Junction
+        model = Reseller
+        fields = ('id', 'identifier', 'name', 'marker', 'mobile_number')
+
+    def create(self, validated_data):
+        marker_data = validated_data.pop('marker')
+        marker = Marker.objects.create(**marker_data)
+        marker.identifier = validated_data['name']
+        marker.save()
+        reseller = Reseller.objects.create(marker=marker, **validated_data)
+        return reseller
+
+    def validate_identifier(self, value):
+        if not value:
+            raise serializers.ValidationError('Identifier is required')
+        value = value.strip()
+        if Reseller.objects.filter(identifier=value).exists():
+            raise serializers.ValidationError('Identifier already exists')
+        return value
+
+
+class ResellerListSerializer(serializers.ModelSerializer):
+    latitude = serializers.FloatField(source='marker.latitude')
+    longitude = serializers.FloatField(source='marker.longitude')
+    address = serializers.CharField(source='marker.address')
+
+    class Meta:
+        model = Reseller
+        fields = ('id', 'identifier', 'name', 'latitude', 'longitude', 'address')
+
+
+class ResellerCoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Core
+        fields = ['id', 'core_number', 'color', 'assigned', ]
+
+
+class ResellerUpdateSerializer(serializers.ModelSerializer):
+    marker = MarkerUpdateSerializer()
+
+    class Meta:
+        model = Reseller
+        fields = ['name', 'mobile_number', 'marker']
+
+    def update(self, instance, validated_data):
+        marker_data = validated_data.pop('marker')
+        instance.marker.address = marker_data['address']
+        instance.marker.description = marker_data['description']
+        instance.marker.notes = marker_data['notes']
+        instance.marker.identifier = validated_data['name']
+
+        instance.marker.save()
+        instance.name = validated_data['name']
+        instance.mobile_number = validated_data['mobile_number']
+        instance.save()
+        return instance
+
+
+class TJBoxCreateSerializer(serializers.ModelSerializer):
+    marker = MarkerSerializer()
+
+    class Meta:
+        model = TJBox
         fields = ('id', 'identifier', 'name', 'marker')
 
     def create(self, validated_data):
@@ -157,55 +286,90 @@ class JunctionCreateSerializer(serializers.ModelSerializer):
         marker = Marker.objects.create(**marker_data)
         marker.identifier = validated_data['name']
         marker.save()
-        junction = Junction.objects.create(marker=marker, **validated_data)
-        return junction
+        tj_box = TJBox.objects.create(marker=marker, **validated_data)
+        return tj_box
 
     def validate_identifier(self, value):
         if not value:
             raise serializers.ValidationError('Identifier is required')
         value = value.strip()
-        if Junction.objects.filter(identifier=value).exists():
+        if TJBox.objects.filter(identifier=value).exists():
             raise serializers.ValidationError('Identifier already exists')
         return value
 
 
-class JunctionListSerializer(serializers.ModelSerializer):
+class TJBoxListSerializer(serializers.ModelSerializer):
     latitude = serializers.FloatField(source='marker.latitude')
     longitude = serializers.FloatField(source='marker.longitude')
     address = serializers.CharField(source='marker.address')
 
     class Meta:
-        model = Junction
+        model = TJBox
         fields = ('id', 'identifier', 'name', 'latitude', 'longitude', 'address')
 
 
-class GponCreateSerializer(serializers.ModelSerializer):
-    marker = MarkerSerializer()
+class TJBoxUpdateSerializer(serializers.ModelSerializer):
+    marker = MarkerUpdateSerializer()
 
     class Meta:
+        model = POP
+        fields = ['name', 'marker']
+
+    def update(self, instance, validated_data):
+        marker_data = validated_data.pop('marker')
+        instance.marker.address = marker_data['address']
+        instance.marker.description = marker_data['description']
+        instance.marker.notes = marker_data['notes']
+        instance.marker.identifier = validated_data['name']
+        instance.marker.save()
+        instance.name = validated_data['name']
+        instance.save()
+        return instance
+
+
+class TJBoxCoreSerializer(serializers.ModelSerializer):
+    last_point = serializers.SerializerMethodField()
+    connected_to = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Core
+        fields = ['id', 'core_number', 'color', 'assigned', 'connected_to', 'last_point']
+
+    def get_last_point(self, obj):
+        last_connected_marker = find_core_paths(obj).pop().marker
+        data = BasicMarkerSerializer(last_connected_marker).data
+        return data
+
+    def get_connected_to(self, obj):
+        connection = Connection.objects.filter(core_from=obj)
+        for conn in connection:
+            if conn.core_from.cable != conn.core_to.cable:
+                return {'id': conn.core_to.id}
+        return None
+
+
+class GponCreateSerializer(serializers.ModelSerializer):
+    class Meta:
         model = Gpon
-        fields = ('id', 'identifier', 'name', 'marker', 'splitter')
+        fields = ('id', 'identifier', 'name', 'tj_box', 'splitter')
 
     def create(self, validated_data):
-        marker_data = validated_data.pop('marker')
-        marker = Marker.objects.create(**marker_data)
-        marker.identifier = validated_data['name']
-        marker.save()
+        marker = validated_data['tj_box'].marker
+        gpon = Gpon.objects.create(marker=marker, **validated_data)
 
         splitter = validated_data['splitter']
-        input_core = Core.objects.create(marker=marker, core_number=0, assigned=False, color='gpon_color')
-        gpon = Gpon.objects.create(marker=marker, input_core=input_core, **validated_data)
+        input_core = Core.objects.create(marker=marker, splitter=gpon, core_number=0, assigned=False,
+                                         color='gpon_color')
+        gpon.input_core = input_core
+        gpon.save()
         for i in range(1, splitter + 1):
-            obj = Core.objects.create(marker=marker, core_number=i, assigned=False, color='gpon_color')
+            obj = Core.objects.create(marker=marker, splitter=gpon, core_number=i, assigned=False, color='gpon_color')
             Connection.objects.create(core_from=obj, core_to=input_core)
         return gpon
 
     def validate_identifier(self, value):
         if not value:
             raise serializers.ValidationError('Identifier is required')
-        value = value.strip()
-        if Gpon.objects.filter(identifier=value).exists():
-            raise serializers.ValidationError('Identifier already exists')
         return value
 
     def validate_splitter(self, value):
@@ -237,8 +401,8 @@ class CableCreateSerializer(serializers.ModelSerializer):
         choices = {
             'POP': POP,
             'CLIENT': Client,
-            'JUNCTION': Junction,
-            'TJ_BOX': Gpon
+            'TJ_BOX': TJBox,
+            'RESELLER': Reseller
         }
 
         start_form = data['start_from']
@@ -254,38 +418,6 @@ class CableCreateSerializer(serializers.ModelSerializer):
                 data['ending_point'] = ending_point.marker.id
 
         return super().to_internal_value(data)
-
-    # def create(self, validated_data):
-    #     starting_point = validated_data['starting_point']
-    #     ending_point = validated_data['ending_point']
-    #
-    #     num_of_core = validated_data['number_of_cores']
-    #     instance = super().create(validated_data)
-    #
-    #     colors = ['red', 'orange', 'yellow', 'olive', 'green', 'teal', 'blue', 'violet', 'purple', 'pink', 'brown',
-    #               'black']
-    #     len_color = len(colors)
-    #     for i in range(1, num_of_core + 1):
-    #         color_index = i % len_color
-    #         start_marker_side = Core.objects.create(
-    #             marker=starting_point,
-    #             cable=instance,
-    #             core_number=i,
-    #             color=colors[color_index],
-    #             assigned=False
-    #         )
-    #         end_marker_side = Core.objects.create(
-    #             marker=ending_point,
-    #             cable=instance,
-    #             core_number=i,
-    #             color=colors[color_index],
-    #             assigned=False
-    #         )
-    #
-    #         Connection.objects.create(core_from=start_marker_side, core_to=end_marker_side)
-    #         Connection.objects.create(core_from=end_marker_side, core_to=start_marker_side)
-    #
-    #     return instance
 
     def create(self, validated_data):
         starting_point = validated_data['starting_point']
@@ -336,8 +468,8 @@ class CableCreateSerializer(serializers.ModelSerializer):
         return instance
 
     def validate_number_of_cores(self, value):
-        if value not in [2, 4, 8, 12, 24, 36, 48]:
-            raise serializers.ValidationError('Number of cores must be 2, 4, 8, 12, 24, 36 or 48')
+        if value not in [2, 4, 6, 8, 12, 24, 48]:
+            raise serializers.ValidationError('Number of cores must be 2, 4, 6, 8, 12, 24, 48')
         return value
 
     def validate(self, data):
@@ -377,55 +509,56 @@ class CableCreateSerializer(serializers.ModelSerializer):
 
 class CableListSerializer(serializers.ModelSerializer):
     polyline = serializers.SerializerMethodField()
+    starting_point = serializers.SerializerMethodField()
+    ending_point = serializers.SerializerMethodField()
 
     class Meta:
         model = Cable
-        fields = ('id', 'identifier', 'type', 'number_of_cores', 'length', 'polyline')
+        fields = ('id', 'identifier', 'type', 'number_of_cores', 'length', 'polyline', 'starting_point', 'ending_point')
 
     def get_polyline(self, obj):
         return obj.get_polyline()
 
+    def get_starting_point(self, obj):
+        return obj.starting_point.identifier
 
-class ClientCoreSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Core
-        fields = ['id', 'core_number', 'color', 'assigned', ]
-
-
-class PopCoreSerializer(serializers.ModelSerializer):
-    connected_to = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Core
-        fields = ['id', 'core_number', 'color', 'assigned', 'connected_to', ]
-
-    def get_connected_to(self, obj):
-        connection = Connection.objects.filter(core_from=obj)
-        for conn in connection:
-            if conn.core_from.cable != conn.core_to.cable:
-                return {'id': conn.core_to.id}
-        return None
+    def get_ending_point(self, obj):
+        return obj.ending_point.identifier
 
 
-class JunctionCoreSerializer(serializers.ModelSerializer):
-    last_point = serializers.SerializerMethodField()
-    connected_to = serializers.SerializerMethodField()
+class CableSerializer(serializers.ModelSerializer):
+    cores = ClientCoreSerializer(many=True, read_only=True)
 
     class Meta:
-        model = Core
-        fields = ['id', 'core_number', 'color', 'assigned', 'connected_to', 'last_point']
+        model = Cable
+        fields = ['id', 'identifier', 'number_of_cores', 'length', 'cores']
 
-    def get_last_point(self, obj):
-        last_connected_marker = find_core_paths(obj).pop().marker
-        data = BasicMarkerSerializer(last_connected_marker).data
-        return data
 
-    def get_connected_to(self, obj):
-        connection = Connection.objects.filter(core_from=obj)
-        for conn in connection:
-            if conn.core_from.cable != conn.core_to.cable:
-                return {'id': conn.core_to.id}
-        return None
+class CableUpdateSerializer(serializers.ModelSerializer):
+    starting_point = serializers.SerializerMethodField()
+    ending_point = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Cable
+        fields = ['id', 'identifier', 'type', 'start_from', 'starting_point', 'end_to', 'ending_point',
+                  'number_of_cores', 'length', 'notes', 'description']
+        read_only_fields = ['start_from', 'starting_point', 'end_to', 'ending_point', 'number_of_cores']
+
+    def get_starting_point(self, obj):
+        return obj.starting_point.identifier
+
+    def get_ending_point(self, obj):
+        return obj.ending_point.identifier
+
+    def update(self, instance, validated_data):
+        instance.type = validated_data.get('type', instance.type)
+        instance.identifier = validated_data.get('identifier', instance.identifier)
+        instance.length = validated_data.get('length', instance.length)
+        instance.notes = validated_data.get('notes', instance.notes)
+        instance.description = validated_data.get('description', instance.description)
+        instance.save()
+
+        return instance
 
 
 class GponOutCoreSerializer(serializers.ModelSerializer):
@@ -465,81 +598,6 @@ class GponCableCoreSerializer(serializers.ModelSerializer):
         return None
 
 
-class CoreAssignSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Core
-        fields = '__all__'
-
-    def update(self, instance, validated_data):
-        instance.assigned = validated_data['assigned']
-        instance.save()
-        return instance
-
-
-class CableSerializer(serializers.ModelSerializer):
-    cores = ClientCoreSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Cable
-        fields = ['id', 'identifier', 'number_of_cores', 'length', 'cores']
-
-
-class ConnectCoresSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Connection
-        fields = '__all__'
-
-    def create(self, validated_data):
-        core_from = validated_data['core_from']
-        core_to = validated_data['core_to']
-        Connection.objects.create(core_from=core_to, core_to=core_from)
-        return Connection.objects.create(core_from=core_from, core_to=core_to)
-
-
-class MarkerUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Marker
-        fields = ['address', 'description', 'notes', ]
-
-
-class POPUpdateSerializer(serializers.ModelSerializer):
-    marker = MarkerUpdateSerializer()
-
-    class Meta:
-        model = POP
-        fields = ['name', 'pop_type', 'marker']
-
-    def update(self, instance, validated_data):
-        marker_data = validated_data.pop('marker')
-        instance.marker.address = marker_data['address']
-        instance.marker.description = marker_data['description']
-        instance.marker.notes = marker_data['notes']
-        instance.marker.save()
-        instance.name = validated_data['name']
-        instance.pop_type = validated_data['pop_type']
-        instance.save()
-        return instance
-
-
-class ClientUpdateSerializer(serializers.ModelSerializer):
-    marker = MarkerUpdateSerializer()
-
-    class Meta:
-        model = Client
-        fields = ['name', 'mobile_number', 'marker']
-
-    def update(self, instance, validated_data):
-        marker_data = validated_data.pop('marker')
-        instance.marker.address = marker_data['address']
-        instance.marker.description = marker_data['description']
-        instance.marker.notes = marker_data['notes']
-        instance.marker.save()
-        instance.name = validated_data['name']
-        instance.mobile_number = validated_data['mobile_number']
-        instance.save()
-        return instance
-
-
 class GponUpdateSerializer(serializers.ModelSerializer):
     marker = MarkerUpdateSerializer()
 
@@ -552,25 +610,32 @@ class GponUpdateSerializer(serializers.ModelSerializer):
         instance.marker.address = marker_data['address']
         instance.marker.description = marker_data['description']
         instance.marker.notes = marker_data['notes']
+        instance.marker.identifier = validated_data['name']
+
         instance.marker.save()
         instance.name = validated_data['name']
         instance.save()
         return instance
 
 
-class CableUpdateSerializer(serializers.ModelSerializer):
+class CoreAssignSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Cable
-        fields = ['id', 'identifier', 'type', 'start_from', 'starting_point', 'end_to', 'ending_point',
-                  'number_of_cores', 'length', 'notes', 'description']
-        read_only_fields = ['start_from', 'starting_point', 'end_to', 'ending_point', 'number_of_cores']
+        model = Core
+        fields = '__all__'
 
     def update(self, instance, validated_data):
-        instance.type = validated_data.get('type', instance.type)
-        instance.identifier = validated_data.get('identifier', instance.identifier)
-        instance.length = validated_data.get('length', instance.length)
-        instance.notes = validated_data.get('notes', instance.notes)
-        instance.description = validated_data.get('description', instance.description)
+        instance.assigned = validated_data['assigned']
         instance.save()
-
         return instance
+
+
+class ConnectCoresSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Connection
+        fields = '__all__'
+
+    def create(self, validated_data):
+        core_from = validated_data['core_from']
+        core_to = validated_data['core_to']
+        Connection.objects.create(core_from=core_to, core_to=core_from)
+        return Connection.objects.create(core_from=core_from, core_to=core_to)

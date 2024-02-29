@@ -29,10 +29,21 @@ urlpatterns = [
     path('client/<int:id>/update/', views.ClientUpdateView.as_view(), name='client-update'),
     path('client/<int:pk>/delete/', views.ClientDeleteView.as_view(), name='client-delete'),
 
-    path('junction/', views.JunctionListView.as_view(), name='junction-create'),
-    path('junction/create/', views.JunctionCreateView.as_view(), name='junction-list'),
-    path('junction-details/<int:junction_id>/cores/', views.JunctionCoresDetailsAPIView.as_view(),
-         name='junction-core-details'),
+    path('reseller/', views.ResellerListView.as_view(), name='reseller-create'),
+    path('reseller/create/', views.ResellerCreateView.as_view(), name='reseller-list'),
+    path('reseller-details/<int:reseller_id>/cores/', views.ResellerCoresDetailsAPIView.as_view(),
+         name='reseller-core-details'),
+    path('reseller/<int:reseller_id>/paths/', views.ResellerPathsView.as_view(), name='reseller-path'),
+    path('reseller/<int:id>/update/', views.ResellerUpdateView.as_view(), name='reseller-update'),
+    path('reseller/<int:pk>/delete/', views.ResellerDeleteView.as_view(), name='reseller-delete'),
+
+    path('tjbox/', views.TJBoxListView.as_view(), name='tjbox-list'),
+    path('tjbox/create/', views.TJBoxCreateView.as_view(), name='tjbox-create'),
+    path('tjbox-details/<int:tj_box_id>/cores/', views.TJBoxCoresDetailsAPIView.as_view(),
+         name='tjbox-core-details'),
+    path('tjbox/<int:id>/update/', views.TJBoxUpdateView.as_view(), name='tjbox-update'),
+    path('tjbox/<int:pk>/delete/', views.TJBoxDeleteView.as_view(), name='tjbox-delete'),
+
 
     path('gpon/', views.GponListView.as_view(), name='gpon-create'),
     path('gpon/create/', views.GponCreateView.as_view(), name='gpon-list'),
@@ -52,6 +63,7 @@ urlpatterns = [
     path('core/<int:pk>/update-assign-status/', views.CoreAssignView.as_view(), name='core-assign-withdraw'),
     path('cable/<int:id>/update/', views.CableUpdateView.as_view(), name='cable-update'),
     path('cable/<int:pk>/delete/', views.CableDeleteView.as_view(), name='cable-delete'),
+    path('cable/<int:cable_id>/cut/', views.CableCutAPIView.as_view(), name='cable-cut'),
 
     path('connect-cores/', views.ConnectCoresAPIView.as_view(), name='connect-cores'),
     path('disconnect-cores/', views.DisConnectCoresAPIView.as_view(), name='disconnect-cores'),
