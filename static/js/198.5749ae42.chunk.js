@@ -1,0 +1,2 @@
+"use strict";(self.webpackChunkfibermap_frontend=self.webpackChunkfibermap_frontend||[]).push([[198],{1198:(e,n,r)=>{r.r(n),r.d(n,{default:()=>f});var a=r(184);function f(){return(0,a.jsx)("div",{children:(0,a.jsx)("h1",{children:"Planing page"})})}}}]);
+//# sourceMappingURL=198.5749ae42.chunk.js.map

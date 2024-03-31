@@ -1,6 +1,5 @@
 from django.urls import path, include
 from map import views
-from map import oldview
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
@@ -67,7 +66,7 @@ urlpatterns = [
 
     path('connect-cores/', views.ConnectCoresAPIView.as_view(), name='connect-cores'),
     path('disconnect-cores/', views.DisConnectCoresAPIView.as_view(), name='disconnect-cores'),
-    # path('network/', views.Network.as_view(), name='network'),
 
-    path('network/', oldview.network_view, name='network_view'),
+    # path('dbdump/', views.DumpDatabaseAPIView.as_view(), name='dbdump'),
+
 ]

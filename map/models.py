@@ -145,3 +145,5 @@ class Connection(models.Model):
 
     def __str__(self):
         return f"{self.core_from} - {self.core_to}"
+
+

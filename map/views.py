@@ -4,13 +4,17 @@ from rest_framework import generics, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.http import HttpResponse, FileResponse
+from django.core.management import call_command
+from django.views import View
+
 from . import permissions
 from .models import POP, Client, TJBox, Gpon, Cable, Core, Connection, UserProfile, Marker, Reseller
 from .serializers import (POPCreateSerializer, ClientCreateSerializer, GponCreateSerializer, TJBoxCreateSerializer,
                           POPListSerializer, ClientListSerializer, GponListSerializer,
                           TJBoxListSerializer, TJBoxUpdateSerializer, CableCreateSerializer, CableListSerializer,
-                          CableSerializer,
-                          ClientCoreSerializer, CoreAssignSerializer, TJBoxCoreSerializer, ConnectCoresSerializer,
+                          CableSerializer, ClientCoreSerializer, CoreAssignSerializer, TJBoxCoreSerializer,
+                          ConnectCoresSerializer,
                           PopCoreSerializer, GponOutCoreSerializer, GponCableCoreSerializer, POPUpdateSerializer,
                           ClientUpdateSerializer, GponUpdateSerializer, CableUpdateSerializer, UserSerializer,
                           ResellerCoreSerializer, ResellerUpdateSerializer, ResellerListSerializer,
@@ -86,6 +90,7 @@ class DashboardView(APIView):
 
     def get(self, request):
         total_clients = Client.objects.count()
+        total_resellers = Reseller.objects.count()
         total_gpons = Gpon.objects.count()
         total_pop = POP.objects.count()
         total_cables = Cable.objects.count()
@@ -93,7 +98,9 @@ class DashboardView(APIView):
             'total_clients': total_clients,
             'total_gpons': total_gpons,
             'total_pop': total_pop,
-            'total_cables': total_cables
+            'total_cables': total_cables,
+            'total_resellers': total_resellers
+
         }, status=status.HTTP_200_OK)
 
 
@@ -184,7 +191,6 @@ class ResellerPathsView(APIView):
                 'path_direction': [],
             }
             path_direction = data['path_direction']
-            print("path", path)
             for c in path:
                 path_unit = {}
                 marker = c.marker
@@ -281,7 +287,6 @@ class ClientPathsView(APIView):
                 'path_direction': [],
             }
             path_direction = data['path_direction']
-            print("path", path)
             for c in path:
                 path_unit = {}
                 marker = c.marker
@@ -833,10 +838,6 @@ class CableCutAPIView(APIView):
         starting_point_cores = Core.objects.filter(cable=cable, marker=cable.starting_point).order_by('core_number')
         ending_point_cores = Core.objects.filter(cable=cable, marker=cable.ending_point).order_by('core_number')
 
-        print("starting_point_cores", starting_point_cores.count())
-        print("ending_point_cores", ending_point_cores.count())
-        print("ending_point_cores", ending_point_cores)
-
         for core in starting_point_cores:
             core.cable = left_cable
             core.save()
@@ -880,3 +881,87 @@ class CableCutAPIView(APIView):
         cable.delete()
 
         return Response({"status": "cable cut success"}, status=status.HTTP_200_OK)
+
+
+# class DumpDatabaseAPIView(APIView):
+#     # authentication_classes = [TokenAuthentication]
+#     # permission_classes = [IsAuthenticated]
+#
+#     def get(self, request):
+#         try:
+#             # Call the dumpdata command and capture its output
+#             call_command('dumpdata', '--natural-foreign', '--natural-primary', '-e', 'contenttypes', '-e',
+#                          'auth.Permission', '-e', 'authtoken', '-o', "data_dump.json.xz")
+#
+#             # Open the BZ2 file and serve it as a response
+#             with open("ubuntu.iso", 'rb') as xz_file:
+#                 response = HttpResponse(xz_file.read(), content_type='application/octet-stream')
+#                 response['Content-Disposition'] = 'attachment; filename="ubuntu.iso"'
+#                 return response
+#
+#         except Exception as e:
+#             return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+from django.http import StreamingHttpResponse, FileResponse
+import os
+
+#
+# class DumpDatabaseAPIView(APIView):
+#     # authentication_classes = [TokenAuthentication]
+#     # permission_classes = [IsAuthenticated]
+#
+#     # def file_iterator(self, file_path, chunk_size=8192):
+#     #     with open(file_path, 'rb') as f:
+#     #         while True:
+#     #             chunk = f.read(chunk_size)
+#     #             if not chunk:
+#     #                 break
+#     #             yield chunk
+#
+#     def get(self, request):
+#         try:
+#             # Call the dumpdata command and capture its output
+#             call_command('dumpdata', '--natural-foreign', '--natural-primary', '-e', 'contenttypes', '-e',
+#                          'auth.Permission', '-e', 'authtoken', '-o', "data_dump.json.xz")
+#
+#             # Serve the BZ2 file using StreamingHttpResponse
+#             backup_file_path = "ubuntu.iso"
+#             if os.path.exists(backup_file_path):
+#                 response = FileResponse(open(backup_file_path, 'rb'),as_attachment=True)
+#                 response['Content-Type'] = 'application/octet-stream'
+#                 response['Content-Disposition'] = 'attachment; filename="ubuntu.iso"'
+#                 return response
+#             else:
+#                 return Response({"error": "Backup file not found"}, status=status.HTTP_404_NOT_FOUND)
+#
+#         except Exception as e:
+#             return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+from django.http import StreamingHttpResponse
+import os
+
+
+class DumpDatabaseAPIView(APIView):
+    def get(self, request):
+        try:
+            backup_file_path = "ubuntu.iso"
+
+            if os.path.exists(backup_file_path):
+                def file_iterator(file_path, chunk_size=8192):
+                    with open(file_path, 'rb') as f:
+                        while True:
+                            chunk = f.read(chunk_size)
+                            if not chunk:
+                                break
+                            yield chunk
+
+                response = StreamingHttpResponse(file_iterator(backup_file_path),
+                                                 content_type='application/octet-stream')
+                response['Content-Length'] = os.path.getsize(backup_file_path)
+                response['Content-Disposition'] = 'attachment; filename="ubuntu.iso"'
+                return response
+            else:
+                return Response({"error": "Backup file not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": "Something went wrong"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

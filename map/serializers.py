@@ -80,7 +80,8 @@ class BasicMarkerSerializer(serializers.ModelSerializer):
 class MarkerUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Marker
-        fields = ['address', 'description', 'notes', ]
+        fields = ['address', 'description', 'notes', 'latitude', 'longitude']
+        read_only_fields = ['latitude', 'longitude']
 
 
 class POPCreateSerializer(serializers.ModelSerializer):
@@ -351,7 +352,7 @@ class TJBoxCoreSerializer(serializers.ModelSerializer):
 class GponCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Gpon
-        fields = ('id', 'identifier', 'name', 'tj_box', 'splitter')
+        fields = ('id', 'name', 'tj_box', 'splitter')
 
     def create(self, validated_data):
         marker = validated_data['tj_box'].marker
@@ -426,13 +427,25 @@ class CableCreateSerializer(serializers.ModelSerializer):
         num_of_core = validated_data['number_of_cores']
         instance = super().create(validated_data)
 
-        colors = ['red', 'orange', 'yellow', 'olive', 'green', 'teal', 'blue', 'violet', 'purple', 'pink', 'brown',
-                  'black']
+        colors = [
+            "blue",
+            "orange",
+            "green",
+            "brown",
+            "grey",
+            "white",
+            "red",
+            "black",
+            "yellow",
+            "violet",
+            "pink",
+            "aqua"
+        ]
         len_color = len(colors)
         start_list = []
         end_list = []
         for i in range(1, num_of_core + 1):
-            color_index = i % len_color
+            color_index = (i - 1) % len_color
             start_marker_side = Core(
                 marker=starting_point,
                 cable=instance,
@@ -571,7 +584,6 @@ class GponOutCoreSerializer(serializers.ModelSerializer):
     def get_connected_to(self, obj):
         connection = Connection.objects.filter(core_from=obj)
         for conn in connection:
-            print(conn)
             if conn.core_to.cable is not None:
                 return {'id': conn.core_to.id}
         return None

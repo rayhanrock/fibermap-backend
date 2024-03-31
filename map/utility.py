@@ -15,7 +15,6 @@ def find_core_paths(starting_core):
     stack = [(starting_core, [])]  # Stack of unexplored paths
     paths = []
     while stack:
-        print('############')
         node, current_path = stack.pop()
         if node not in visited:
             visited.add(node)
@@ -29,7 +28,6 @@ def find_core_paths(starting_core):
                     if neighbor not in visited:
                         stack.append((neighbor, current_path.copy()))
 
-    print(paths)
     result = []
     for path in paths:
         if path[0].cable == path[1].cable:
