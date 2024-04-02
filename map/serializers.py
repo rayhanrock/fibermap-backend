@@ -584,7 +584,7 @@ class GponOutCoreSerializer(serializers.ModelSerializer):
     def get_connected_to(self, obj):
         connection = Connection.objects.filter(core_from=obj)
         for conn in connection:
-            if conn.core_to.cable is not None:
+            if conn.core_from.splitter != conn.core_to.splitter:
                 return {'id': conn.core_to.id}
         return None
 
