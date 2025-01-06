@@ -91,7 +91,7 @@ class DashboardView(APIView):
     def get(self, request):
         total_clients = Client.objects.count()
         total_resellers = Reseller.objects.count()
-        total_gpons = Gpon.objects.count()
+        total_gpons = TJBox.objects.count()
         total_pop = POP.objects.count()
         total_cables = Cable.objects.count()
         return Response(data={
